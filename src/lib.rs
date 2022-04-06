@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
-use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 
 // Define datatypes
 
 pub struct MothershipState {
     pub mission: Mission,
-    pub tasks: VecDeque<Point>,
+    pub tasks: Arc<Mutex<VecDeque<Point>>>,
     pub delegate_tasks: DelegateTasks,
 }
 
@@ -40,16 +40,18 @@ pub struct DelegateTasks {
     pub complete: u32,
 }
 
-pub fn search (tx: mpsc::Sender<()>, rx: mpsc::Receiver<Point>) {
-
+pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Point>>>) {
     loop {
-        if let Ok(point) = rx.try_recv() {
-            println!("Got: {:?}", point);
-            std::thread::sleep(std::time::Duration::from_secs(3));
-            println!("searched: {:?}", point);
+        let mut tasks = tasks.lock().unwrap();
+        if let Some(task) = tasks.pop_front() {
+            drop(tasks);
+            println!("Running pick up on {:?}", task);
+            // Do pickup with robot
+        } else {
+            drop(tasks);
+            println!("No more tasks");
         }
-        tx.send(()).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
     }
-
-
 }
