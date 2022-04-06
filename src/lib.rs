@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
+pub mod comms;
 
-// Define datatypes
 
 pub struct MothershipState {
     pub mission: Mission,
