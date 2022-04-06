@@ -1,4 +1,5 @@
 use async_std::io;
+// use env_logger::{Builder, Env};
 use futures::{prelude::*, select};
 use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
@@ -10,10 +11,11 @@ use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    // Builder::from_env(Env::default().default_filter_or("info")).init();
 
-pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
-
-     // Create a random PeerId
+    // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
@@ -24,8 +26,8 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create a Gossipsub topic
     let topic = Topic::new("topic");
 
-    let mut swarm = { // Build and implicitly return swarm
-
+    // Create a Swarm to manage peers and events
+    let mut swarm = {
         // To content-address message, we can take the hash of message and use it as an ID.
         let message_id_fn = |message: &GossipsubMessage| {
             let mut s = DefaultHasher::new();
@@ -37,11 +39,10 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
         let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
             .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-            .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
-            .duplicate_cache_time(Duration::from_secs(1))
+            .message_id_fn(message_id_fn) // content-address messages. No two messages of the
+            // same content will be propagated.
             .build()
             .expect("Valid config");
-
         // build a gossipsub network behaviour
         let mut gossipsub: gossipsub::Gossipsub =
             gossipsub::Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
@@ -50,16 +51,47 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
         // subscribes to our topic
         gossipsub.subscribe(&topic).unwrap();
 
+        // add an explicit peer if one was provided
+        if let Some(explicit) = std::env::args().nth(2) {
+            let explicit = explicit.clone();
+            match explicit.parse() {
+                Ok(id) => gossipsub.add_explicit_peer(&id),
+                Err(err) => println!("Failed to parse explicit peer id: {:?}", err),
+            }
+        }
+
         // build the swarm
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
 
+    // Listen on all interfaces and whatever port the OS assigns
     swarm
-        .listen_on("/ip4/192.168.40.201/tcp/60740".parse().unwrap())
+        .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
         .unwrap();
 
+    // Reach out to another node if specified
+    if let Some(to_dial) = std::env::args().nth(1) {
+        let address: Multiaddr = to_dial.parse().expect("User to provide valid address.");
+        match swarm.dial(address.clone()) {
+            Ok(_) => println!("Dialed {:?}", address),
+            Err(e) => println!("Dial {:?} failed: {:?}", address, e),
+        };
+    }
+
+    // Read full lines from stdin
+    let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
+
+    // Kick it off
     loop {
         select! {
+            line = stdin.select_next_some() => {
+                if let Err(e) = swarm
+                    .behaviour_mut()
+                    .publish(topic.clone(), line.expect("Stdin not to close").as_bytes())
+                {
+                    println!("Publish error: {:?}", e);
+                }
+            },
             event = swarm.select_next_some() => match event {
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
                     propagation_source: peer_id,
@@ -78,5 +110,4 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
             }
         }
     }
-
 }
