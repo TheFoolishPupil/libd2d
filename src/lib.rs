@@ -4,17 +4,20 @@ use std::sync::{Arc, Mutex};
 pub mod comms;
 
 
+#[derive(Debug)]
 pub struct MothershipState {
     pub mission: Mission,
     pub tasks: Arc<Mutex<VecDeque<Point>>>,
     pub delegate_tasks: DelegateTasks,
 }
 
+#[derive(Debug)]
 pub struct Mission {
     pub status: MissionStatus,
     pub area: Area,
 }
 
+#[derive(Debug)]
 pub enum MissionStatus {
     Pending,
     InProgress,
@@ -35,6 +38,7 @@ pub struct Point {
     pub y: u32,
 }
 
+#[derive(Debug)]
 pub struct DelegateTasks {
     pub total: u32,
     pub complete: u32,

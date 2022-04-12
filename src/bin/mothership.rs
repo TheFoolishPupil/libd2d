@@ -30,26 +30,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     };
 
-    // let mut handles = vec![];
-
     // create robot thread
     let tasks = Arc::clone(&state.tasks);
-    let handle = thread::spawn(move || mothership_bot(Arc::clone(&state.tasks)));
-    // handles.push(handle);
+    let robot_handle = thread::spawn(move || mothership_bot(Arc::clone(&state.tasks)));
 
     // create libp2p thread
-    let handle1 = task::spawn(create_p2p_network());
-    // handles.push(handle1);
+    let comm_handle = task::spawn(create_p2p_network());
 
 
     let mut tasks = tasks.lock().unwrap();
     tasks.push_back(Point {x:4, y:4});
-    println!("{:?}", tasks);
+    println!("{:?}", state);
     drop(tasks);
 
     // Prevent main from exiting while thread is running
-    handle.join().unwrap();
-    handle1.await?;
+    robot_handle.join().unwrap();
+    comm_handle.await?;
 
     Ok(())
 
