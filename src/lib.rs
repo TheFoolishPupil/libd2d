@@ -1,20 +1,17 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use ndarray::Array2;
 
 pub mod comms;
 
 
 #[derive(Debug)]
 pub struct MothershipState {
-    pub mission: Mission,
-    pub tasks: Arc<Mutex<VecDeque<Point>>>,
+    pub mission_status: MissionStatus,
+    pub mission_area: Option<Array2<u32>>,
+    pub position: Coordinate,
+    pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
     pub delegate_tasks: DelegateTasks,
-}
-
-#[derive(Debug)]
-pub struct Mission {
-    pub status: MissionStatus,
-    pub area: Area,
 }
 
 #[derive(Debug)]
@@ -25,15 +22,7 @@ pub enum MissionStatus {
 }
 
 #[derive(Debug)]
-pub struct Area {
-    pub x1: u32,
-    pub y1: u32,
-    pub x2: u32,
-    pub y2: u32,
-}
-
-#[derive(Debug)]
-pub struct Point {
+pub struct Coordinate {
     pub x: u32,
     pub y: u32,
 }
@@ -44,7 +33,7 @@ pub struct DelegateTasks {
     pub complete: u32,
 }
 
-pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Point>>>) {
+pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {
     loop {
         let mut tasks = tasks.lock().unwrap();
         if let Some(task) = tasks.pop_front() {

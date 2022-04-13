@@ -9,3 +9,7 @@ edition = "2021"
 async-std = { version="1.11.0", features=["attributes"] }
 futures = "0.3.21"
 libp2p = "0.44.0"
+ndarray = { version = "0.15.4",  features = ["serde"] }
+serde_json = { version = "1.0.79" }
+
+[features]

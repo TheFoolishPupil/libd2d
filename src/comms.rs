@@ -23,6 +23,7 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create a Gossipsub topic
     let topic = Topic::new("topic");
+    let topic_mission = Topic::new("mission");
 
     let mut swarm = { // Build and implicitly return swarm
 
@@ -48,6 +49,7 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
                 .expect("Correct configuration");
 
         // subscribes to our topic
+        gossipsub.subscribe(&topic_mission).unwrap();
         gossipsub.subscribe(&topic).unwrap();
 
         // build the swarm
@@ -55,7 +57,7 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
     };
 
     swarm
-        .listen_on("/ip4/192.168.40.201/tcp/60740".parse().unwrap())
+        .listen_on("/ip4/127.0.0.1/tcp/60740".parse().unwrap())
         .unwrap();
 
     loop {
