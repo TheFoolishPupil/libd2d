@@ -26,6 +26,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create a Gossipsub topic
     let topic = Topic::new("topic");
+    let topic_mission = Topic::new("mission");
 
     let mut swarm = { // Build and implicitly return swarm
 
@@ -52,6 +53,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
         // subscribes to our topic
         gossipsub.subscribe(&topic).unwrap();
+        gossipsub.subscribe(&topic_mission).unwrap();
 
         // build the swarm
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
@@ -116,7 +118,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                 if let Err(e) = swarm
                     .behaviour_mut()
-                    .publish(topic.clone(), serialized.as_bytes())
+                    .publish(topic_mission.clone(), serialized.as_bytes())
                 {
                     println!("Publish error: {:?}", e);
                 };

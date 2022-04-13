@@ -67,12 +67,22 @@ pub async fn create_p2p_network () -> Result<(), Box<dyn Error + Send + Sync>> {
                     propagation_source: peer_id,
                     message_id: id,
                     message,
-                }) => println!(
-                    "Got message: {} with id: {} from peer: {:?}",
-                    String::from_utf8_lossy(&message.data),
-                    id,
-                    peer_id
-                ),
+                }) => {
+                    println!(
+                        "Got message: {} with id: {} from peer: {:?}",
+                        String::from_utf8_lossy(&message.data),
+                        id,
+                        peer_id
+                    );
+                    match message.topic.as_str() {
+                        "mission" => {
+                            // Update mission state
+                            println!("New mission message")
+                        },
+                        _ => println!("Unknown topic"),
+                    };
+                }
+
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Listening on {:?}", address);
                 }
