@@ -1,23 +1,30 @@
-use ndarray::Array2;
-
-#[derive(Debug)]
-struct Area {
-    grid: Array2<u32>,
-}
+#[macro_use(array)]
+extern crate ndarray;
+use ndarray::Axis;
 
 fn main () {
 
-    let x:[[i32;2];3] = [[8;2];3];
-    println!("{:?}", x);
+    let mission_area: ndarray::Array2<u32> = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                    [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                    [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+                                                    [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
+                                                    [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
+                                                    [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0],
+                                                    [0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0],
+                                                    [0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0],
+                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0],
+                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0],
+                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12]];
 
-    let mut area = Area {
-        grid: Array2::<u32>::zeros((3, 4)),
-    };
+    let view = mission_area.view();
 
-    println!("{:?}", area);
+    let (x,y) = view.split_at(Axis(1), 6);
     
-    area.grid[[0,0]] = 1;
+    println!("{}", x[[0,0]]);
+    println!("TESTING");
+    println!("{}", y[[0,0]]);
 
-    println!("{:?}", area);
-
+    // println!("{:?}", view);
+    // println!("{:?}", view.split_at(ndarray::Axis(1), 6));
 }

@@ -7,6 +7,7 @@ use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, PeerId};
 use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
 use serde_json;
+use ndarray::Array2;
 
 use libd2d::{MothershipState, MissionStatus, Coordinate, DelegateTasks, mothership_bot};
 
@@ -86,32 +87,40 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     message_id: _id,
                     message,
                 }) => {
-                    // println!(
-                    //     "Got message: {} with id: {} from peer: {:?}",
-                    //     String::from_utf8_lossy(&message.data),
-                    //     id,
-                    //     peer_id
-                    // );
                     match message.topic.as_str() {
 
                         "new_mission" => {
 
-                            // Update mission state
-                            state.mission_status = MissionStatus::InProgress;
-                            let serialized_area = String::from_utf8_lossy(&message.data);
-                            let area = serde_json::from_str(&serialized_area).unwrap();
-                            state.mission_area = Some(area);
+                            // Update state
 
-                            // Update delegate tasks
-                            for peer in swarm.connected_peers() {
-                                println!("{:?}", peer);
-                            };
+                            state.mission_status = MissionStatus::InProgress;
+
+                            let serialized_area = String::from_utf8_lossy(&message.data);
+                            let area: Array2<u32> = serde_json::from_str(&serialized_area).unwrap();
+                            state.mission_area = Some(area.clone());
+
+                            let (minion_count, _) = swarm.connected_peers().size_hint(); 
+                            state.delegate_tasks.total = minion_count as u32;
+
+                            // TODO: Splitting only exactly for 2 minions. 
+                            // This should be generalized for N minions. 
+                            // Create a function that returns an iterator?
+                            let (dim_x, _) = area.dim();
+                            let (subarea_1, subarea_2) = area
+                                .view()
+                                .split_at(ndarray::Axis(0), dim_x/2);
+
+                            println!("{:?}\n{:?}", subarea_1, subarea_2);
+
+
+
                             if let Err(e) = swarm
                                 .behaviour_mut()
                                 .publish(topic.clone(), "THIS IS A TEST".as_bytes())
                             {
                                 println!("Publish error: {:?}", e);
-                            }
+                            };
+                            // println!("{:?}", state);
 
                         },
 
