@@ -115,15 +115,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             },
             event = swarm.select_next_some() => match event {
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
-                    propagation_source: peer_id,
-                    message_id: id,
-                    message,
-                }) => println!(
-                    "Got message: {} with id: {} from peer: {:?}",
-                    String::from_utf8_lossy(&message.data),
-                    id,
-                    peer_id
-                ),
+                    propagation_source: _peer_id,
+                    message_id: _id,
+                    message: _,
+                }) => {
+                },
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Listening on {:?}", address);
                 }

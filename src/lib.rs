@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use ndarray::Array2;
+use ndarray::{ArrayBase, ViewRepr, Array2, Dim};
+use libp2p::PeerId;
+use serde::{Serialize, Deserialize};
 
 pub mod comms;
 
@@ -29,8 +31,15 @@ pub struct Coordinate {
 
 #[derive(Debug)]
 pub struct DelegateTasks {
-    pub total: u32,
+    pub minions: Vec<PeerId>,
+    pub total: u32, // This is set once the mission is received, based on the number of subscribed minions.
     pub complete: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DelegateTaskMessage {
+    pub peer_id: PeerId,
+    pub area: Array2<u32>,
 }
 
 pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {

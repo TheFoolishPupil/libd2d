@@ -8,8 +8,9 @@ edition = "2021"
 [dependencies]
 async-std = { version="1.11.0", features=["attributes"] }
 futures = "0.3.21"
-libp2p = "0.44.0"
+libp2p = { version="0.44.0", features=["serde"] }
 ndarray = { version = "0.15.4",  features = ["serde"] }
+serde = "1.0.136"
 serde_json = { version = "1.0.79" }
 
 [features]

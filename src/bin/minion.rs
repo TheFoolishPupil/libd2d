@@ -4,6 +4,9 @@ use async_std::io;
 use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
 use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
+use ndarray::Array2;
+
+use libd2d::DelegateTaskMessage;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -16,7 +19,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
     let transport = libp2p::development_transport(local_key.clone()).await?;
 
-    let topic = Topic::new("topic");
+    let topic_discovery = Topic::new("discovery");
+    let topic_delegate_task = Topic::new("delegate_task");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -32,7 +36,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             gossipsub::Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
                 .expect("Correct configuration");
 
-        gossipsub.subscribe(&topic).unwrap();
+        gossipsub.subscribe(&topic_discovery).unwrap();
+        gossipsub.subscribe(&topic_delegate_task).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -50,22 +55,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
             line = stdin.select_next_some() => {
                 if let Err(e) = swarm
                     .behaviour_mut()
-                    .publish(topic.clone(), line.expect("Stdin not to close").as_bytes())
+                    .publish(topic_delegate_task.clone(), line.expect("Stdin not to close").as_bytes())
                 {
                     println!("Publish error: {:?}", e);
                 }
             },
             event = swarm.select_next_some() => match event {
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
-                    propagation_source: peer_id,
-                    message_id: id,
+                    propagation_source: _peer_id,
+                    message_id: _id,
                     message,
-                }) => println!(
-                    "Got message: {} with id: {} from peer: {:?}",
-                    String::from_utf8_lossy(&message.data),
-                    id,
-                    peer_id
-                ),
+                }) => {
+                    let serialized_area = String::from_utf8_lossy(&message.data);
+
+                    let area: DelegateTaskMessage = serde_json::from_str(&serialized_area).unwrap();
+
+                    println!("{:?}", area);
+                },
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Listening on {:?}", address);
                 }

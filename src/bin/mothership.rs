@@ -9,7 +9,7 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 use serde_json;
 use ndarray::Array2;
 
-use libd2d::{MothershipState, MissionStatus, Coordinate, DelegateTasks, mothership_bot};
+use libd2d::{MothershipState, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, mothership_bot};
 
 
 #[async_std::main]
@@ -22,6 +22,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         position: Coordinate { x:0, y:0 },
         tasks: Arc::new(Mutex::new(VecDeque::new())),
         delegate_tasks: DelegateTasks {
+            minions: Vec::new(),
             total: 0,
             complete: 0,
         }
@@ -38,8 +39,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let tasks = Arc::clone(&state.tasks);
     let _ = thread::spawn(move || mothership_bot(tasks));
 
-
-    // Set up comms
     // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
@@ -49,12 +48,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let transport = libp2p::development_transport(local_key.clone()).await?;
 
     // Create a Gossipsub topic
-    let topic = Topic::new("topic");
+    let topic_discovery = Topic::new("discovery");
     let topic_new_mission = Topic::new("new_mission");
+    let topic_delegate_task = Topic::new("delegate_task");
 
-    let mut swarm = { // Build and implicitly return swarm
+    // Create a Swarm to manage peers and events
+    let mut swarm = {
 
-        // Set a custom gossipsub
         let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
             .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
@@ -67,11 +67,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             gossipsub::Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
                 .expect("Correct configuration");
 
-        // subscribes to our topic
-        gossipsub.subscribe(&topic).unwrap();
+        gossipsub.subscribe(&topic_discovery).unwrap();
         gossipsub.subscribe(&topic_new_mission).unwrap();
+        gossipsub.subscribe(&topic_delegate_task).unwrap();
 
-        // build the swarm
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
 
@@ -82,8 +81,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     loop {
         select! {
             event = swarm.select_next_some() => match event {
+
+                // Events for peers subscribing to topic.
+                SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
+                    peer_id,
+                    topic,
+                }) => {
+                    if topic == topic_delegate_task.hash(){ // update delegate tasks according to peers subscribed to topic
+                        state.delegate_tasks.minions.push(peer_id);
+                        println!("{:?}", state);
+                    };
+                },
+
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
-                    propagation_source: _peer_id,
+                    propagation_source: peer_id,
                     message_id: _id,
                     message,
                 }) => {
@@ -99,34 +110,46 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             let area: Array2<u32> = serde_json::from_str(&serialized_area).unwrap();
                             state.mission_area = Some(area.clone());
 
-                            let (minion_count, _) = swarm.connected_peers().size_hint(); 
+                            let minion_count = state.delegate_tasks.minions.len();
+
                             state.delegate_tasks.total = minion_count as u32;
+                            println!("{}", minion_count);
 
                             // TODO: Splitting only exactly for 2 minions. 
                             // This should be generalized for N minions. 
                             // Create a function that returns an iterator?
                             let (dim_x, _) = area.dim();
-                            let (subarea_1, subarea_2) = area
+                            let (subarea_1, _subarea_2) = area
                                 .view()
-                                .split_at(ndarray::Axis(0), dim_x/2);
+                                .split_at(ndarray::Axis(0), dim_x/minion_count);
 
-                            println!("{:?}\n{:?}", subarea_1, subarea_2);
+                            // subarea_1.to_owned() + "str";
 
+                            let taskmsg1 = DelegateTaskMessage {
+                                peer_id: state.delegate_tasks.minions[0],
+                                area: subarea_1.to_owned(),
+                            };
 
+                            let serialized = serde_json::to_string(&taskmsg1).unwrap();
 
                             if let Err(e) = swarm
                                 .behaviour_mut()
-                                .publish(topic.clone(), "THIS IS A TEST".as_bytes())
+                                .publish(topic_delegate_task.clone(), serialized.as_bytes())
                             {
                                 println!("Publish error: {:?}", e);
                             };
-                            // println!("{:?}", state);
 
                         },
 
+
+                        "discovery" => {
+
+                            println!("discovery message from {:?}", peer_id);
+                        }
+
                         _ => println!("Unknown topic"),
                     };
-                }
+                },
 
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Listening on {:?}", address);
