@@ -82,15 +82,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         select! {
             event = swarm.select_next_some() => match event {
 
-                // Events for peers subscribing to topic.
                 SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
                     peer_id,
                     topic,
-                }) => {
-                    if topic == topic_delegate_task.hash(){ // update delegate tasks according to peers subscribed to topic
-                        state.delegate_tasks.minions.push(peer_id);
-                        println!("{:?}", state);
-                    };
+                }) if topic == topic_delegate_task.hash() => {
+                    // update delegate tasks according to peers subscribed to topic
+                    state.delegate_tasks.minions.push(peer_id);
+                    println!("{:?}", state);
                 },
 
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
@@ -119,22 +117,32 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             // This should be generalized for N minions. 
                             // Create a function that returns an iterator?
                             let (dim_x, _) = area.dim();
-                            let (subarea_1, _subarea_2) = area
+                            let (subarea_1, subarea_2) = area
                                 .view()
                                 .split_at(ndarray::Axis(0), dim_x/minion_count);
-
-                            // subarea_1.to_owned() + "str";
 
                             let taskmsg1 = DelegateTaskMessage {
                                 peer_id: state.delegate_tasks.minions[0],
                                 area: subarea_1.to_owned(),
                             };
 
-                            let serialized = serde_json::to_string(&taskmsg1).unwrap();
+                            let taskmsg2 = DelegateTaskMessage {
+                                peer_id: state.delegate_tasks.minions[1],
+                                area: subarea_2.to_owned(),
+                            };
+
+                            let serialized1 = serde_json::to_string(&taskmsg1).unwrap();
+                            let serialized2 = serde_json::to_string(&taskmsg1).unwrap();
 
                             if let Err(e) = swarm
                                 .behaviour_mut()
-                                .publish(topic_delegate_task.clone(), serialized.as_bytes())
+                                .publish(topic_delegate_task.clone(), serialized1.as_bytes())
+                            {
+                                println!("Publish error: {:?}", e);
+                            };
+                            if let Err(e) = swarm
+                                .behaviour_mut()
+                                .publish(topic_delegate_task.clone(), serialized2.as_bytes())
                             {
                                 println!("Publish error: {:?}", e);
                             };

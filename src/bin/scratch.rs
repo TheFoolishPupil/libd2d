@@ -1,30 +1,14 @@
-#[macro_use(array)]
-extern crate ndarray;
-use ndarray::Axis;
 
 fn main () {
 
-    let mission_area: ndarray::Array2<u32> = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                    [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                    [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                    [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
-                                                    [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
-                                                    [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0],
-                                                    [0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0],
-                                                    [0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0],
-                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0],
-                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0],
-                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12]];
+    let x = 3;
+    let y = 5;
+    let z = x + y;
 
-    let view = mission_area.view();
+    println!("Hi Bettina 1!");
+    println!("Hi Bettina 2!");
+    println!("Hi Bettina 3!");
 
-    let (x,y) = view.split_at(Axis(1), 6);
-    
-    println!("{}", x[[0,0]]);
-    println!("TESTING");
-    println!("{}", y[[0,0]]);
+    println!("Hi z: {}!", z);
 
-    // println!("{:?}", view);
-    // println!("{:?}", view.split_at(ndarray::Axis(1), 6));
 }

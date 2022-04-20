@@ -1,11 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use ndarray::{ArrayBase, ViewRepr, Array2, Dim};
+use ndarray::Array2;
 use libp2p::PeerId;
 use serde::{Serialize, Deserialize};
-
-pub mod comms;
-
 
 #[derive(Debug)]
 pub struct MothershipState {
