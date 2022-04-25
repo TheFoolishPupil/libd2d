@@ -1,13 +1,28 @@
+use std::collections::VecDeque;
 use std::error::Error;
 use std::time::Duration;
+use std::sync::{Arc, Mutex};
 use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
 use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
 
-use libd2d::DelegateTaskMessage;
+use async_std::stream;
+
+use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, ActorPosition, Minion };
+
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+
+    // Set initial state
+    let mut state = MinionState {
+        position: ActorPosition {
+            coordinates: Coordinate { x: -5, y: -5 },
+            orientation: 0.
+        },
+        mission_area: None,
+        tasks: Arc::new(Mutex::new(VecDeque::new()))
+    };
 
     // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
@@ -18,6 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let transport = libp2p::development_transport(local_key.clone()).await?;
 
     let topic_delegate_task = Topic::new("delegate_task");
+    let topic_heartbeat = Topic::new("heartbeat");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -34,6 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .expect("Correct configuration");
 
         gossipsub.subscribe(&topic_delegate_task).unwrap();
+        gossipsub.subscribe(&topic_heartbeat).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -44,6 +61,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => println!("Dial {:?} failed: {:?}", address, e),
     };
 
+    let mut heartbeat_interval = stream::interval(Duration::from_secs(4)).fuse();
+
     loop {
         select! {
             event = swarm.select_next_some() => match event {
@@ -52,18 +71,48 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     message_id: _id,
                     message,
                 }) => {
-                    let serialized_area = String::from_utf8_lossy(&message.data);
+                    match message.topic.as_str() {
 
-                    let task: DelegateTaskMessage = serde_json::from_str(&serialized_area).unwrap();
+                        "delegate_task" => {
 
-                    
+                            let task: DelegateTaskMessage = 
+                                serde_json::from_str(
+                                    &String::from_utf8_lossy(&message.data)
+                                ).unwrap();
 
-                    println!("{:?}", task);
+                            if task.peer_id == local_peer_id {
+
+                                // update state
+                                state.mission_area = Some(task.area);
+                                println!("{:?}", state.mission_area);
+                            };
+
+                        },
+
+                        _ => {}
+                    }
                 },
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Listening on {:?}", address);
                 }
                 _ => {}
+            },
+
+            _ = heartbeat_interval.select_next_some() => {
+                let heartbeat = Minion {
+                    peer_id: local_peer_id,
+                    position: state.position.coordinates.clone()
+                };
+
+                let heartbeat = serde_json::to_string(&heartbeat).unwrap();
+
+                if let Err(e) = swarm
+                    .behaviour_mut()
+                    .publish(topic_heartbeat.clone(), heartbeat.as_bytes())
+                {
+                    println!("Publish error: {:?}", e);
+                };
+
             }
         }
     }

@@ -1,16 +1,31 @@
 use std::collections::VecDeque;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use ndarray::Array2;
 use libp2p::PeerId;
 use serde::{Serialize, Deserialize};
 
+
 #[derive(Debug)]
 pub struct MothershipState {
+    pub position: ActorPosition,
     pub mission_status: MissionStatus,
     pub mission_area: Option<Array2<u32>>,
-    pub position: Coordinate,
     pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
     pub delegate_tasks: DelegateTasks,
+}
+
+#[derive(Debug)]
+pub struct MinionState  {
+    pub position: ActorPosition,
+    pub mission_area: Option<Array2<u32>>,
+    pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
+}
+
+#[derive(Debug)]
+pub struct ActorPosition {
+    pub coordinates: Coordinate,
+    pub orientation: f64,
 }
 
 #[derive(Debug)]
@@ -20,15 +35,22 @@ pub enum MissionStatus {
     Complete,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Coordinate {
-    pub x: u32,
-    pub y: u32,
+    pub x: i32,
+    pub y: i32,
+}
+
+// Struct used by mothership to keep track of minions
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Minion {
+    pub peer_id: PeerId,
+    pub position: Coordinate,
 }
 
 #[derive(Debug)]
 pub struct DelegateTasks {
-    pub minions: Vec<PeerId>,
+    pub minions: HashMap<PeerId, Coordinate>,
     pub total: u32, // This is set once the mission is received, based on the number of subscribed minions.
     pub complete: u32,
 }
