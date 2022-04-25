@@ -146,32 +146,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     println!("Publish error: {:?}", e);
                                 }
                             }
-
-                            // let taskmsg1 = DelegateTaskMessage {
-                            //     peer_id: state.delegate_tasks.minions[0],
-                            //     area: subarea_1.to_owned(),
-                            // };
-
-                            // let taskmsg2 = DelegateTaskMessage {
-                            //     peer_id: state.delegate_tasks.minions[1].peer_id,
-                            //     area: subarea_2.to_owned(),
-                            // };
-
-                            // let serialized1 = serde_json::to_string(&taskmsg1).unwrap();
-                            // let serialized2 = serde_json::to_string(&taskmsg2).unwrap();
-
-                            // if let Err(e) = swarm
-                            //     .behaviour_mut()
-                            //     .publish(topic_delegate_task.clone(), serialized1.as_bytes())
-                            // {
-                            //     println!("Publish error: {:?}", e);
-                            // };
-                            // if let Err(e) = swarm
-                            //     .behaviour_mut()
-                            //     .publish(topic_delegate_task.clone(), serialized2.as_bytes())
-                            // {
-                            //     println!("Publish error: {:?}", e);
-                            // };
                             // REFACTOR TO
 
                         },

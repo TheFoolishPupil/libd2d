@@ -18,8 +18,8 @@ pub struct MothershipState {
 #[derive(Debug)]
 pub struct MinionState  {
     pub position: ActorPosition,
-    pub mission_area: Option<Array2<u32>>,
-    pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
+    pub tasks: Arc<Mutex<VecDeque<Array2<u32>>>>,
+    pub points_of_interest: Arc<Mutex<VecDeque<Coordinate>>>,
 }
 
 #[derive(Debug)]
@@ -68,6 +68,26 @@ pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {
             drop(tasks);
             println!("Running pick up on {:?}", task);
             // Do pickup with robot
+        } else {
+            drop(tasks);
+            println!("No more tasks");
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+}
+
+pub fn minion_bot (tasks: Arc<Mutex<VecDeque<Array2<u32>>>>, points_of_interest:Arc<Mutex<VecDeque<Coordinate>>>) {
+    loop {
+        let mut tasks = tasks.lock().unwrap();
+        if let Some(task) = tasks.pop_front() {
+            drop(tasks);
+            println!("Running search on {:?}", task);
+            // Do search with robot
+            {
+                let mut pois = points_of_interest.lock().unwrap();
+                pois.push_front(Coordinate {x:0, y:0});
+            }
         } else {
             drop(tasks);
             println!("No more tasks");

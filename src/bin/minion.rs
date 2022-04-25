@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::error::Error;
 use std::time::Duration;
+use std::thread;
 use std::sync::{Arc, Mutex};
 use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
@@ -8,7 +9,7 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 
 use async_std::stream;
 
-use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, ActorPosition, Minion };
+use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, ActorPosition, Minion, minion_bot };
 
 
 #[async_std::main]
@@ -20,9 +21,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             coordinates: Coordinate { x: -5, y: -5 },
             orientation: 0.
         },
-        mission_area: None,
-        tasks: Arc::new(Mutex::new(VecDeque::new()))
+        tasks: Arc::new(Mutex::new(VecDeque::new())),
+        points_of_interest: Arc::new(Mutex::new(VecDeque::new())),
     };
+
+    // create robot thread
+    let tasks = Arc::clone(&state.tasks);
+    let pois = Arc::clone(&state.points_of_interest);
+    let _ = thread::spawn(move || minion_bot(tasks, pois));
 
     // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
@@ -82,9 +88,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                             if task.peer_id == local_peer_id {
 
-                                // update state
-                                state.mission_area = Some(task.area);
-                                println!("{:?}", state.mission_area);
+                                
+                            { // update state
+                                let mut tasks = state.tasks.lock().unwrap();
+                                tasks.push_back(task.area);
+                            }
+                            println!("{:?}", state);
+
+                                // Commence search
+
                             };
 
                         },
