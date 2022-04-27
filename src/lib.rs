@@ -1,3 +1,7 @@
+use futures::task::Poll;
+use futures::task::Context;
+use futures::task::Waker;
+use core::pin::Pin;
 use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -13,6 +17,7 @@ pub struct MothershipState {
     pub mission_area: Option<Array2<u32>>,
     pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
     pub delegate_tasks: DelegateTasks,
+    waker: Option<Waker>,
 }
 
 #[derive(Debug)]
@@ -59,6 +64,25 @@ pub struct DelegateTasks {
 pub struct DelegateTaskMessage {
     pub peer_id: PeerId,
     pub area: Array2<u32>,
+}
+
+impl futures::stream::Stream for MinionState {
+
+    type Item = Coordinate;
+
+    fn poll_next(
+        self: Pin<&mut Self>, 
+        cx: &mut Context<'_>
+    ) -> Poll<Option<Self::Item>> {
+
+        let mut pois = self.points_of_interest.lock().unwrap();
+        if let Some(poi) = pois.pop_front() {
+            return Poll::Ready(Some(poi));
+        } else {
+            // self.waker = Some(cx.waker().clone());
+            return Poll::Pending;
+        }
+    }
 }
 
 pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {

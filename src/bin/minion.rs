@@ -23,6 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         },
         tasks: Arc::new(Mutex::new(VecDeque::new())),
         points_of_interest: Arc::new(Mutex::new(VecDeque::new())),
+        waker: Arc::new(Mutex::new(None))
     };
 
     // create robot thread
@@ -68,6 +69,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let mut heartbeat_interval = stream::interval(Duration::from_secs(4)).fuse();
+
+    let poi_stream = (&mut state).fuse();
 
     loop {
         select! {
