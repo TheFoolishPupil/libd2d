@@ -9,7 +9,7 @@ use async_std::task::{Context, Poll, Waker};
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 
-    let mut timer = TimerStream::new(Duration::from_secs(3)).fuse();
+    let mut timer = TimerStream::new(Duration::from_secs(1)).fuse();
 
     loop {
         select! {
@@ -18,7 +18,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     }
-
 }
 
 pub struct TimerStream {
@@ -26,7 +25,7 @@ pub struct TimerStream {
 }
 
 struct SharedState {
-    completed: bool,
+    coordinate: Option<u32>,
     counter: u32,
     waker: Option<Waker>,
 }
@@ -41,13 +40,16 @@ impl futures::stream::Stream for TimerStream {
 
         let mut shared_state = self.shared_state.lock().unwrap();
 
-        if shared_state.completed {
-            shared_state.completed = false;
-            shared_state.counter += 1;
-            Poll::Ready(Some(shared_state.counter))
-        } else {
+        match shared_state.coordinate {
+
+            Some(coordinate) => {
+                shared_state.coordinate = None;
+                Poll::Ready(Some(coordinate))
+            }
+            None => {
             shared_state.waker = Some(cx.waker().clone());
             Poll::Pending
+            }
         }
     }
 }
@@ -56,7 +58,7 @@ impl TimerStream {
 
     pub fn new(duration: Duration) -> Self {
         let shared_state = Arc::new(Mutex::new(SharedState {
-            completed: false,
+            coordinate: None,
             counter: 0,
             waker: None,
         }));
@@ -66,7 +68,8 @@ impl TimerStream {
             loop {
                 thread::sleep(duration);
                 let mut shared_state = thread_shared_state.lock().unwrap();
-                shared_state.completed = true;
+                shared_state.coordinate = Some(shared_state.counter);
+                shared_state.counter += 1;
                 if let Some(waker) = shared_state.waker.take() {
                     waker.wake()
                 }
