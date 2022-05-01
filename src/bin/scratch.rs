@@ -5,7 +5,7 @@ extern crate ndarray;
 
 
 fn main () {
-    let arr: ndarray::Array2<u32> = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    let arr: ndarray::Array2<u32> = array![[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                                             [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                                             [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                                             [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -19,9 +19,19 @@ fn main () {
                                             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0],
                                             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13]];
 
+
+
+
     let iter = arr.axis_chunks_iter(ndarray::Axis(1), 2);
 
     for i in iter {
         println!("{:?}", i);
     }
+
+
+    for x in arr {
+        println!("{:?}", x);
+    }
+
+
 }

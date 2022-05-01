@@ -10,7 +10,7 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 use serde_json;
 use ndarray::Array2;
 
-use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, ActorPosition, DelegateTasks, DelegateTaskMessage, mothership_bot};
+use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, mothership_bot};
 
 
 #[async_std::main]
@@ -18,10 +18,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Set initial state
     let mut state = MothershipState {
-        position: ActorPosition {
-            coordinates: Coordinate { x: -1, y: -1 },
-            orientation: 0.,
-        },
+        position: Coordinate { x: -1, y: -1 },
         mission_status: MissionStatus::Pending,
         mission_area: None,
         tasks: Arc::new(Mutex::new(VecDeque::new())),

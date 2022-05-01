@@ -1,6 +1,9 @@
+use std::time::Duration;
 use futures::task::Poll;
 use futures::task::Context;
+use std::thread;
 use futures::task::Waker;
+use async_std::stream::Stream;
 use core::pin::Pin;
 use std::collections::VecDeque;
 use std::collections::HashMap;
@@ -12,7 +15,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Debug)]
 pub struct MothershipState {
-    pub position: ActorPosition,
+    pub position: Coordinate,
     pub mission_status: MissionStatus,
     pub mission_area: Option<Array2<u32>>,
     pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
@@ -21,15 +24,17 @@ pub struct MothershipState {
 
 #[derive(Debug)]
 pub struct MinionState  {
-    pub position: ActorPosition,
-    pub tasks: Arc<Mutex<VecDeque<Array2<u32>>>>,
-    pub points_of_interest: Arc<Mutex<VecDeque<Coordinate>>>,
+    pub heartbeat: bool,
+    pub ready: bool,
+    pub position: Coordinate,
+    pub poi: bool,
+    pub mission_area: Option<Array2<u32>>,
+    pub waker: Option<Waker>,
 }
 
 #[derive(Debug)]
-pub struct ActorPosition {
-    pub coordinates: Coordinate,
-    pub orientation: f64,
+pub struct MinionStream {
+    shared_state: Arc<Mutex<MinionState>>,
 }
 
 #[derive(Debug)]
@@ -43,6 +48,12 @@ pub enum MissionStatus {
 pub struct Coordinate {
     pub x: i32,
     pub y: i32,
+}
+
+impl Coordinate {
+    pub fn inc_x(&mut self) {
+        self.x = self.x + 1;
+    }
 }
 
 // Struct used by mothership to keep track of minions
@@ -65,7 +76,7 @@ pub struct DelegateTaskMessage {
     pub area: Array2<u32>,
 }
 
-impl futures::stream::Stream for MinionState {
+impl Stream for MinionStream {
 
     type Item = Coordinate;
 
@@ -74,13 +85,50 @@ impl futures::stream::Stream for MinionState {
         cx: &mut Context<'_>
     ) -> Poll<Option<Self::Item>> {
 
-        let mut pois = self.points_of_interest.lock().unwrap();
-        if let Some(poi) = pois.pop_front() {
-            return Poll::Ready(Some(poi));
+        let mut shared_state = self.shared_state.lock().unwrap();
+
+        if shared_state.ready {
+
+            if shared_state.heartbeat {
+                shared_state.heartbeat = false;
+                return Poll::Ready(Some(shared_state.position.clone()));
+            } else {
+                shared_state.waker = Some(cx.waker().clone());
+                return Poll::Pending;
+            }
         } else {
-            // self.waker = Some(cx.waker().clone());
+            shared_state.waker = Some(cx.waker().clone());
             return Poll::Pending;
         }
+    }
+}
+
+impl MinionStream {
+
+    pub fn new(shared_state: Arc<Mutex<MinionState>>) -> Self {
+
+        let thread_shared_state = shared_state.clone();
+        thread::spawn(move || {
+            loop {
+                thread::sleep(Duration::from_secs(1));
+                let mut shared_state = thread_shared_state.lock().unwrap();
+
+                // Advance to next position
+                shared_state.position.inc_x();
+                if shared_state.position.x % 2 == 0 {
+                    shared_state.poi = true;
+                } else {
+                    shared_state.poi = false;
+                };
+                // Tell comms to poll again.
+                shared_state.heartbeat = true;
+                if let Some(waker) = shared_state.waker.take() {
+                    waker.wake()
+                }
+            }
+        });
+
+        MinionStream { shared_state }
     }
 }
 
@@ -100,22 +148,22 @@ pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {
     }
 }
 
-pub fn minion_bot (tasks: Arc<Mutex<VecDeque<Array2<u32>>>>, points_of_interest:Arc<Mutex<VecDeque<Coordinate>>>) {
-    loop {
-        let mut tasks = tasks.lock().unwrap();
-        if let Some(task) = tasks.pop_front() {
-            drop(tasks);
-            println!("Running search on {:?}", task);
-            // Do search with robot
-            {
-                let mut pois = points_of_interest.lock().unwrap();
-                pois.push_front(Coordinate {x:0, y:0});
-            }
-        } else {
-            drop(tasks);
-            println!("No more tasks");
-        }
+// pub fn minion_bot (tasks: Arc<Mutex<VecDeque<Array2<u32>>>>, points_of_interest:Arc<Mutex<VecDeque<Coordinate>>>) {
+//     loop {
+//         let mut tasks = tasks.lock().unwrap();
+//         if let Some(task) = tasks.pop_front() {
+//             drop(tasks);
+//             println!("Running search on {:?}", task);
+//             // Do search with robot
+//             {
+//                 let mut pois = points_of_interest.lock().unwrap();
+//                 pois.push_front(Coordinate {x:0, y:0});
+//             }
+//         } else {
+//             drop(tasks);
+//             println!("No more tasks");
+//         }
 
-        std::thread::sleep(std::time::Duration::from_secs(5));
-    }
-}
+//         std::thread::sleep(std::time::Duration::from_secs(5));
+//     }
+// }

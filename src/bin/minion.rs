@@ -7,29 +7,21 @@ use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
 use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
 
-use async_std::stream;
-
-use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, ActorPosition, Minion, minion_bot };
+use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, MinionStream };
 
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 
     // Set initial state
-    let mut state = MinionState {
-        position: ActorPosition {
-            coordinates: Coordinate { x: -5, y: -5 },
-            orientation: 0.
-        },
-        tasks: Arc::new(Mutex::new(VecDeque::new())),
-        points_of_interest: Arc::new(Mutex::new(VecDeque::new())),
-        // waker: Arc::new(Mutex::new(None))
-    };
-
-    // create robot thread
-    let tasks = Arc::clone(&state.tasks);
-    let pois = Arc::clone(&state.points_of_interest);
-    let _ = thread::spawn(move || minion_bot(tasks, pois));
+    let mut state = Arc::new(Mutex::new(MinionState {
+        heartbeat: false,
+        ready: true,
+        position: Coordinate { x: -5, y: -5 },
+        poi: false,
+        mission_area: None,
+        waker: None
+    }));
 
     // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
@@ -68,10 +60,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => println!("Dial {:?} failed: {:?}", address, e),
     };
 
-    let mut heartbeat_interval = stream::interval(Duration::from_secs(4)).fuse();
-
-    // Stream here needs to 
-    let poi_stream = (&mut state).fuse();
+    let thread_shared_state = Arc::clone(&state);
+    let mut poi_stream = MinionStream::new(thread_shared_state).fuse();
 
     loop {
         select! {
@@ -92,8 +82,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                             if task.peer_id == local_peer_id {
                             { // update state
-                                let mut tasks = state.tasks.lock().unwrap();
-                                tasks.push_back(task.area);
+                                let mut state = state.lock().unwrap();
+                                state.mission_area = Some(task.area);
                             }
                             println!("{:?}", state);
 
@@ -112,22 +102,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 _ => {}
             },
 
-            _ = heartbeat_interval.select_next_some() => {
-                let heartbeat = Minion {
-                    peer_id: local_peer_id,
-                    position: state.position.coordinates.clone()
-                };
+        x = poi_stream.select_next_some() => {
+            println!("POI_STREAM: {:?}", x);
+        }
 
-                let heartbeat = serde_json::to_string(&heartbeat).unwrap();
-
-                if let Err(e) = swarm
-                    .behaviour_mut()
-                    .publish(topic_heartbeat.clone(), heartbeat.as_bytes())
-                {
-                    println!("Publish error: {:?}", e);
-                };
-
-            }
         }
     }
 }
