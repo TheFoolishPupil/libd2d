@@ -33,6 +33,12 @@ pub struct MinionState  {
 }
 
 #[derive(Debug)]
+pub struct MinionHeartbeat {
+    pub position: Coordinate,
+    pub poi: bool,
+}
+
+#[derive(Debug)]
 pub struct MinionStream {
     shared_state: Arc<Mutex<MinionState>>,
 }
@@ -78,7 +84,7 @@ pub struct DelegateTaskMessage {
 
 impl Stream for MinionStream {
 
-    type Item = Coordinate;
+    type Item = MinionHeartbeat;
 
     fn poll_next(
         self: Pin<&mut Self>, 
@@ -91,7 +97,10 @@ impl Stream for MinionStream {
 
             if shared_state.heartbeat {
                 shared_state.heartbeat = false;
-                return Poll::Ready(Some(shared_state.position.clone()));
+                return Poll::Ready(Some(MinionHeartbeat {
+                    position: shared_state.position.clone(),
+                    poi: shared_state.poi.clone(),
+                }));
             } else {
                 shared_state.waker = Some(cx.waker().clone());
                 return Poll::Pending;
