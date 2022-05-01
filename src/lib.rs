@@ -161,17 +161,22 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<Array2<
     let (axis, axis_size) = area.shape().iter().enumerate().max_by_key(|(_,v)| *v).unwrap();
     println!("Largest axis: {:?} with size: {:?}", axis, axis_size);
 
-    let splits = axis_size / minion_count;
-    let rem = axis_size % minion_count; 
+    if minion_count > 1 {
+        let splits = axis_size / minion_count;
+        let rem = axis_size % minion_count; 
 
-    println!("splits: {:?}. rem: {:?}", splits, rem);
+        println!("splits: {:?}. rem: {:?}", splits, rem);
 
-    let mut split = area.axis_chunks_iter(Axis(axis), splits);
-    let last1 = split.next_back().unwrap(); // `n-1`th element
-    let last2 = split.next_back().unwrap(); // `n-2`th element
+        let mut split = area.axis_chunks_iter(Axis(axis), splits);
+        let last1 = split.next_back().unwrap(); // `n-1`th element
+        let last2 = split.next_back().unwrap(); // `n-2`th element
 
-    let split = split.map(|x| x.to_owned());
-    let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
+        let split = split.map(|x| x.to_owned());
+        let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
 
-    split.chain([joint]).collect::<Vec<_>>()
+        return split.chain([joint]).collect::<Vec<_>>();
+    } else {
+        return vec![area];
+    }
+
 }
