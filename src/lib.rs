@@ -8,7 +8,7 @@ use core::pin::Pin;
 use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use ndarray::Array2;
+use ndarray::{Array2, Axis, concatenate};
 use libp2p::PeerId;
 use serde::{Serialize, Deserialize};
 
@@ -157,22 +157,21 @@ pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {
     }
 }
 
-// pub fn minion_bot (tasks: Arc<Mutex<VecDeque<Array2<u32>>>>, points_of_interest:Arc<Mutex<VecDeque<Coordinate>>>) {
-//     loop {
-//         let mut tasks = tasks.lock().unwrap();
-//         if let Some(task) = tasks.pop_front() {
-//             drop(tasks);
-//             println!("Running search on {:?}", task);
-//             // Do search with robot
-//             {
-//                 let mut pois = points_of_interest.lock().unwrap();
-//                 pois.push_front(Coordinate {x:0, y:0});
-//             }
-//         } else {
-//             drop(tasks);
-//             println!("No more tasks");
-//         }
+pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<Array2<u32>> {
+    let (axis, axis_size) = area.shape().iter().enumerate().max_by_key(|(_,v)| *v).unwrap();
+    println!("Largest axis: {:?} with size: {:?}", axis, axis_size);
 
-//         std::thread::sleep(std::time::Duration::from_secs(5));
-//     }
-// }
+    let splits = axis_size / minion_count;
+    let rem = axis_size % minion_count; 
+
+    println!("splits: {:?}. rem: {:?}", splits, rem);
+
+    let mut split = area.axis_chunks_iter(Axis(axis), splits);
+    let last1 = split.next_back().unwrap(); // `n-1`th element
+    let last2 = split.next_back().unwrap(); // `n-2`th element
+
+    let split = split.map(|x| x.to_owned());
+    let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
+
+    split.chain([joint]).collect::<Vec<_>>()
+}

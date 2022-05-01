@@ -10,7 +10,7 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 use serde_json;
 use ndarray::Array2;
 
-use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, mothership_bot};
+use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, mothership_bot, split_mission_area};
 
 
 #[async_std::main]
@@ -115,7 +115,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             let minion_count = state.delegate_tasks.minions.len();
 
                             state.delegate_tasks.total = minion_count as u32;
-                            println!("{}", minion_count);
 
                             // REFACTOR FROM
                             // TODO: Splitting only exactly for 2 minions. 
