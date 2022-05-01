@@ -106,19 +106,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                         "new_mission" => {
 
+                            let area: Array2<u32> = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
+
                             // Update state
                             state.mission_status = MissionStatus::InProgress;
-                            
-                            let area: Array2<u32> = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             state.mission_area = Some(area.clone());
-
                             let minion_count = state.delegate_tasks.minions.len();
-
                             state.delegate_tasks.total = minion_count as u32;
 
+                            // Split up area amongst minions
                             let splits = split_mission_area(area.clone(), minion_count);
-
-                            // Zip area spits with connected minions
                             let zipped = splits.iter().zip(state.delegate_tasks.minions.clone());
 
                             for (subarea, minion) in zipped {
@@ -134,34 +131,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     println!("Publish error: {:?}", e);
                                 }
                             }
-                            // REFACTOR FROM
-                            // TODO: Splitting only exactly for 2 minions. 
-                            // This should be generalized for N minions. 
-                            // Create a function that returns an iterator?
-                            // let (dim_x, _) = area.dim();
-                            // let subareas = area
-                            //     .view()
-                            //     .split_at(ndarray::Axis(0), dim_x/minion_count);
-
-                            // let subareas = vec![subareas.0, subareas.1];
-
-                            // let mut split_count = 0;
-                            // for (peer_id, _) in state.delegate_tasks.minions.iter() {
-                            //     let task_msg = DelegateTaskMessage {
-                            //         peer_id: peer_id.clone(),
-                            //         area: subareas[split_count].to_owned()
-                            //     };
-                            //     split_count += 1;
-                            //     let task_msg = serde_json::to_string(&task_msg).unwrap();
-                            //     if let Err(e) = swarm
-                            //         .behaviour_mut()
-                            //         .publish(topic_delegate_task.clone(), task_msg.as_bytes())
-                            //     {
-                            //         println!("Publish error: {:?}", e);
-                            //     }
-                            // }
-                            // REFACTOR TO
-
                         },
 
                         _ => println!("Unknown topic"),
