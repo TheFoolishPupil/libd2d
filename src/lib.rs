@@ -17,7 +17,6 @@ pub struct MothershipState {
     pub mission_area: Option<Array2<u32>>,
     pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
     pub delegate_tasks: DelegateTasks,
-    waker: Option<Waker>,
 }
 
 #[derive(Debug)]

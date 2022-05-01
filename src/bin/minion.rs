@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         },
         tasks: Arc::new(Mutex::new(VecDeque::new())),
         points_of_interest: Arc::new(Mutex::new(VecDeque::new())),
-        waker: Arc::new(Mutex::new(None))
+        // waker: Arc::new(Mutex::new(None))
     };
 
     // create robot thread
@@ -70,6 +70,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut heartbeat_interval = stream::interval(Duration::from_secs(4)).fuse();
 
+    // Stream here needs to 
     let poi_stream = (&mut state).fuse();
 
     loop {
@@ -90,8 +91,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 ).unwrap();
 
                             if task.peer_id == local_peer_id {
-
-                                
                             { // update state
                                 let mut tasks = state.tasks.lock().unwrap();
                                 tasks.push_back(task.area);
