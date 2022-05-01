@@ -116,32 +116,50 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                             state.delegate_tasks.total = minion_count as u32;
 
-                            // REFACTOR FROM
-                            // TODO: Splitting only exactly for 2 minions. 
-                            // This should be generalized for N minions. 
-                            // Create a function that returns an iterator?
-                            let (dim_x, _) = area.dim();
-                            let subareas = area
-                                .view()
-                                .split_at(ndarray::Axis(0), dim_x/minion_count);
+                            let splits = split_mission_area(area.clone(), minion_count);
 
-                            let subareas = vec![subareas.0, subareas.1];
+                            // Zip area spits with connected minions
+                            let zipped = splits.iter().zip(state.delegate_tasks.minions.clone());
 
-                            let mut split_count = 0;
-                            for (peer_id, _) in state.delegate_tasks.minions.iter() {
-                                let task_msg = DelegateTaskMessage {
-                                    peer_id: peer_id.clone(),
-                                    area: subareas[split_count].to_owned()
+                            for (subarea, minion) in zipped {
+                                let task_message = DelegateTaskMessage {
+                                    peer_id: minion.0.clone(),
+                                    area: subarea.to_owned(),
                                 };
-                                split_count += 1;
-                                let task_msg = serde_json::to_string(&task_msg).unwrap();
+                                let task_message = serde_json::to_string(&task_message).unwrap();
                                 if let Err(e) = swarm
                                     .behaviour_mut()
-                                    .publish(topic_delegate_task.clone(), task_msg.as_bytes())
+                                    .publish(topic_delegate_task.clone(), task_message.as_bytes())
                                 {
                                     println!("Publish error: {:?}", e);
                                 }
                             }
+                            // REFACTOR FROM
+                            // TODO: Splitting only exactly for 2 minions. 
+                            // This should be generalized for N minions. 
+                            // Create a function that returns an iterator?
+                            // let (dim_x, _) = area.dim();
+                            // let subareas = area
+                            //     .view()
+                            //     .split_at(ndarray::Axis(0), dim_x/minion_count);
+
+                            // let subareas = vec![subareas.0, subareas.1];
+
+                            // let mut split_count = 0;
+                            // for (peer_id, _) in state.delegate_tasks.minions.iter() {
+                            //     let task_msg = DelegateTaskMessage {
+                            //         peer_id: peer_id.clone(),
+                            //         area: subareas[split_count].to_owned()
+                            //     };
+                            //     split_count += 1;
+                            //     let task_msg = serde_json::to_string(&task_msg).unwrap();
+                            //     if let Err(e) = swarm
+                            //         .behaviour_mut()
+                            //         .publish(topic_delegate_task.clone(), task_msg.as_bytes())
+                            //     {
+                            //         println!("Publish error: {:?}", e);
+                            //     }
+                            // }
                             // REFACTOR TO
 
                         },
