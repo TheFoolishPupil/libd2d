@@ -121,7 +121,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             for (subarea, minion) in zipped {
                                 let task_message = DelegateTaskMessage {
                                     peer_id: minion.0.clone(),
-                                    area: subarea.to_owned(),
+                                    global_coordinates: Coordinate { x: subarea.0[0], y: subarea.0[1] },
+                                    area: subarea.1.to_owned(),
                                 };
                                 let task_message = serde_json::to_string(&task_message).unwrap();
                                 if let Err(e) = swarm

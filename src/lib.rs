@@ -79,6 +79,7 @@ pub struct DelegateTasks {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DelegateTaskMessage {
     pub peer_id: PeerId,
+    pub global_coordinates: Coordinate,
     pub area: Array2<u32>,
 }
 
@@ -157,7 +158,7 @@ pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {
     }
 }
 
-pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<Array2<u32>> {
+pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 2], Array2<u32>)> {
     let (axis, axis_size) = area.shape().iter().enumerate().max_by_key(|(_,v)| *v).unwrap();
     println!("Largest axis: {:?} with size: {:?}", axis, axis_size);
 
@@ -167,16 +168,31 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<Array2<
 
         println!("splits: {:?}. rem: {:?}", splits, rem);
 
-        let mut split = area.axis_chunks_iter(Axis(axis), splits);
-        let last1 = split.next_back().unwrap(); // `n-1`th element
-        let last2 = split.next_back().unwrap(); // `n-2`th element
+        if rem > 0 {
+            let mut split = area.axis_chunks_iter(Axis(axis), splits);
+            let last1 = split.next_back().unwrap(); // `n-1`th element
+            let last2 = split.next_back().unwrap(); // `n-2`th element
 
-        let split = split.map(|x| x.to_owned());
-        let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
+            let split = split.map(|x| x.to_owned());
+            let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
 
-        return split.chain([joint]).collect::<Vec<_>>();
+            let areas = split.chain([joint]).collect::<Vec<_>>();
+            // let mut origins = vec![[0,0]; areas.len()];
+
+            let x = areas.iter().clone();
+            let x = x.map(|value| ([0,0], value.to_owned()));
+
+            return x.collect::<Vec<_>>();
+
+            // return split.chain([joint]).collect::<Vec<_>>();
+        } else {
+            let areas = area.axis_chunks_iter(Axis(axis), splits);
+            let x = areas.map(|value| ([0,0], value.to_owned()));
+            return x.collect::<Vec<_>>();
+        }
+
     } else {
-        return vec![area];
+        return vec![([0,0], area)];
     }
 
 }
