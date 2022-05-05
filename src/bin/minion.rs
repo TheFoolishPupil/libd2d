@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set initial state
     let mut state = Arc::new(Mutex::new(MinionState {
         heartbeat: false,
-        ready: true,
+        ready: false,
         position: Coordinate { x: -5, y: -5 },
         poi: false,
         mission_area: None,
@@ -81,16 +81,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 ).unwrap();
 
                             if task.peer_id == local_peer_id {
-                            { // update state
-                                let mut state = state.lock().unwrap();
-                                state.mission_area = Some(task.area);
-                                state.position = task.global_coordinates;
-                                println!("GLOBAL COOR: {:?}", state.position);
-                            }
-                            println!("{:?}", state);
+                                { // update state
+                                    let mut state = state.lock().unwrap();
 
-                                // Commence search
+                                    let indexed = task.area.indexed_iter();
+                                    let collected = indexed.collect::<Vec<_>>();
+                                    let owned_iter = collected.into_iter();
+                                    let x = owned_iter.map(|((i, j), k)| ((i as i32, j as i32), *k));
+                                    state.mission_area = Some(x.collect::<Vec<_>>().into_iter());
 
+                                    state.position = task.global_coordinates;
+
+                                    state.ready = true;
+                                }
                             };
 
                         },

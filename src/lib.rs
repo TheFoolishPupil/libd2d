@@ -1,3 +1,4 @@
+use std::vec::IntoIter;
 use std::time::Duration;
 use futures::task::Poll;
 use futures::task::Context;
@@ -28,7 +29,8 @@ pub struct MinionState  {
     pub ready: bool,
     pub position: Coordinate,
     pub poi: bool,
-    pub mission_area: Option<Array2<u32>>,
+    // pub mission_area: Option<Array2<u32>>,
+    pub mission_area: Option<IntoIter<((i32, i32), u32)>>,
     pub waker: Option<Waker>,
 }
 
@@ -94,22 +96,17 @@ impl Stream for MinionStream {
 
         let mut shared_state = self.shared_state.lock().unwrap();
 
-        if shared_state.ready { // This should be moved to the new method, so that movement is first commenced when ready, currently polling is commenced when ready.
-
-            if shared_state.heartbeat {
-                shared_state.heartbeat = false;
-                return Poll::Ready(Some(MinionHeartbeat {
-                    position: shared_state.position.clone(),
-                    poi: shared_state.poi.clone(),
-                }));
-            } else {
-                shared_state.waker = Some(cx.waker().clone());
-                return Poll::Pending;
-            }
+        if shared_state.heartbeat {
+            shared_state.heartbeat = false;
+            return Poll::Ready(Some(MinionHeartbeat {
+                position: shared_state.position.clone(),
+                poi: shared_state.poi.clone(),
+            }));
         } else {
             shared_state.waker = Some(cx.waker().clone());
             return Poll::Pending;
         }
+
     }
 }
 
@@ -123,38 +120,39 @@ impl MinionStream {
                 thread::sleep(Duration::from_secs(1));
                 let mut shared_state = thread_shared_state.lock().unwrap();
 
-                // Advance to next position
-                shared_state.position.inc_x();
-                if shared_state.position.x % 2 == 0 {
-                    shared_state.poi = true;
-                } else {
-                    shared_state.poi = false;
-                };
-                // Tell comms to poll again.
-                shared_state.heartbeat = true;
-                if let Some(waker) = shared_state.waker.take() {
-                    waker.wake()
+                if shared_state.ready {
+
+                    match &mut shared_state.mission_area {
+                        Some(area) => {
+                            println!("SEARCHING: {:?}", area.next());
+                            shared_state.heartbeat = true;
+                            if let Some(waker) = shared_state.waker.take() {
+                                waker.wake()
+                            };
+                        }
+                        None => {
+                            panic!("No mission area!");
+                        }
+                    }
+
+                    // // Advance to next position
+                    // shared_state.position.inc_x();
+                    // if shared_state.position.x % 2 == 0 {
+                    //     shared_state.poi = true;
+                    // } else {
+                    //     shared_state.poi = false;
+                    // };
+                    // // Tell comms to poll again.
+                    // shared_state.heartbeat = true;
+                    // if let Some(waker) = shared_state.waker.take() {
+                    //     waker.wake()
+                    // }
+
                 }
             }
         });
 
         MinionStream { shared_state }
-    }
-}
-
-pub fn mothership_bot (tasks: Arc<Mutex<VecDeque<Coordinate>>>) {
-    loop {
-        let mut tasks = tasks.lock().unwrap();
-        if let Some(task) = tasks.pop_front() {
-            drop(tasks);
-            println!("Running pick up on {:?}", task);
-            // Do pickup with robot
-        } else {
-            drop(tasks);
-            println!("No more tasks");
-        }
-
-        std::thread::sleep(std::time::Duration::from_secs(5));
     }
 }
 
@@ -185,7 +183,7 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
                 step += step;
             };
             let y = origins.into_iter().zip(x);
-            
+
             return y.collect::<Vec<_>>();
 
         } else {

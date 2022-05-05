@@ -66,21 +66,21 @@ fn main () {
     }
 
     // Use this for minion to traverse array.
-    // for i in arr.indexed_iter() {
-    //     println!("{:?}", i);
-    // }
-
-    let foo = [0, 1, 2, 3];
-    let mut step = 4;
-    let mut x = vec![[0, 0]; foo.len()];
-
-    for i in x.iter_mut().skip(1) {
-        i[0] += step;
-        step += step;
+    for i in arr.indexed_iter() {
+        println!("x: {:?}, y: {:?}, value: {:?}", i.0.0, i.0.1, i.1);
     }
 
-    println!("{:?}", x);
-    let bar = foo.iter().map(|x| ([0,0], x)).collect::<Vec<_>>();
+    // let foo = [0, 1, 2, 3];
+    // let mut step = 4;
+    // let mut x = vec![[0, 0]; foo.len()];
 
-    println!("{:?}", bar);
+    // for i in x.iter_mut().skip(1) {
+    //     i[0] += step;
+    //     step += step;
+    // }
+
+    // println!("{:?}", x);
+    // let bar = foo.iter().map(|x| ([0,0], x)).collect::<Vec<_>>();
+
+    // println!("{:?}", bar);
 }
