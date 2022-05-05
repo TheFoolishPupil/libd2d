@@ -1,7 +1,5 @@
-use std::collections::VecDeque;
 use std::error::Error;
 use std::time::Duration;
-use std::thread;
 use std::sync::{Arc, Mutex};
 use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
@@ -14,10 +12,12 @@ use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, MinionStream };
 async fn main() -> Result<(), Box<dyn Error>> {
 
     // Set initial state
-    let mut state = Arc::new(Mutex::new(MinionState {
+    let state = Arc::new(Mutex::new(MinionState {
         heartbeat: false,
         ready: false,
-        position: Coordinate { x: -5, y: -5 },
+        global_position: Coordinate { x: -5, y: -5 },
+        local_position: Coordinate { x: 0, y: 0 },
+        area_exhausted: false,
         poi: false,
         mission_area: None,
         waker: None
@@ -90,7 +90,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     let x = owned_iter.map(|((i, j), k)| ((i as i32, j as i32), *k));
                                     state.mission_area = Some(x.collect::<Vec<_>>().into_iter());
 
-                                    state.position = task.global_coordinates;
+                                    state.global_position = task.global_coordinates;
 
                                     state.ready = true;
                                 }
@@ -109,6 +109,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         x = poi_stream.select_next_some() => {
             println!("POI_STREAM: {:?}", x);
+            if x.poi {
+                let state = state.lock().unwrap();
+                println!("POI at {:?}", x.position);
+                println!("POI)ADJ at {:?}", x.position + state.global_position);
+            }
         }
 
         }

@@ -1,3 +1,4 @@
+use std::ops::Add;
 use std::vec::IntoIter;
 use std::time::Duration;
 use futures::task::Poll;
@@ -27,7 +28,9 @@ pub struct MothershipState {
 pub struct MinionState  {
     pub heartbeat: bool,
     pub ready: bool,
-    pub position: Coordinate,
+    pub global_position: Coordinate,
+    pub local_position: Coordinate,
+    pub area_exhausted: bool,
     pub poi: bool,
     // pub mission_area: Option<Array2<u32>>,
     pub mission_area: Option<IntoIter<((i32, i32), u32)>>,
@@ -52,16 +55,10 @@ pub enum MissionStatus {
     Complete,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Coordinate {
     pub x: i32,
     pub y: i32,
-}
-
-impl Coordinate {
-    pub fn inc_x(&mut self) {
-        self.x = self.x + 1;
-    }
 }
 
 // Struct used by mothership to keep track of minions
@@ -85,6 +82,17 @@ pub struct DelegateTaskMessage {
     pub area: Array2<u32>,
 }
 
+impl Add for Coordinate {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
 impl Stream for MinionStream {
 
     type Item = MinionHeartbeat;
@@ -99,7 +107,7 @@ impl Stream for MinionStream {
         if shared_state.heartbeat {
             shared_state.heartbeat = false;
             return Poll::Ready(Some(MinionHeartbeat {
-                position: shared_state.position.clone(),
+                position: shared_state.local_position.clone(),
                 poi: shared_state.poi.clone(),
             }));
         } else {
@@ -124,30 +132,26 @@ impl MinionStream {
 
                     match &mut shared_state.mission_area {
                         Some(area) => {
-                            println!("SEARCHING: {:?}", area.next());
-                            shared_state.heartbeat = true;
-                            if let Some(waker) = shared_state.waker.take() {
-                                waker.wake()
-                            };
+                            let current_location = area.next();
+                            match current_location {
+                                Some(((x, y), poi)) => {
+                                    shared_state.local_position = Coordinate { x, y };
+                                    shared_state.poi = if poi != 0 { true } else { false };
+                                    shared_state.heartbeat = true;
+                                    if let Some(waker) = shared_state.waker.take() {
+                                        waker.wake()
+                                    };
+                                },
+                                None => {
+                                    println!("Area area_exhausted");
+                                    // Signal to retrun Poll::Ready(None)
+                                }
+                            }
                         }
                         None => {
                             panic!("No mission area!");
                         }
                     }
-
-                    // // Advance to next position
-                    // shared_state.position.inc_x();
-                    // if shared_state.position.x % 2 == 0 {
-                    //     shared_state.poi = true;
-                    // } else {
-                    //     shared_state.poi = false;
-                    // };
-                    // // Tell comms to poll again.
-                    // shared_state.heartbeat = true;
-                    // if let Some(waker) = shared_state.waker.take() {
-                    //     waker.wake()
-                    // }
-
                 }
             }
         });
