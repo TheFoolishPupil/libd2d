@@ -64,7 +64,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let thread_shared_state = Arc::clone(&state);
     let poi_stream = MinionStream::new(thread_shared_state);
-    let mut poi_stream = poi_stream.chain(futures::stream::iter(std::iter::from_fn(|| { dbg!("ended"); None }))).fuse();
+    let mut poi_stream = poi_stream.chain(futures::stream::iter(std::iter::from_fn(|| { None }))).fuse();
+
 
     loop {
         select! {
@@ -125,20 +126,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             println!("Publish error: {:?}", e);
                         }
                     };
-                    let state = state.lock().unwrap();
-                    if state.area_exhausted {
-                        println!("task-complete");
-                        drop(state);
-                        if let Err(e) = swarm
-                            .behaviour_mut()
-                            .publish(topic_poi.clone(), "Done".as_bytes())
-                        {
-                            println!("Publish error: {:?}", e);
-                        }
-                    }
                 },
                 None => {
-                    dbg!("NONE");
+                    println!("task-complete");
+                    if let Err(e) = swarm
+                        .behaviour_mut()
+                        .publish(topic_task_complete.clone(), "".as_bytes())
+                    {
+                        println!("Publish error: {:?}", e);
+                    }
                 }
             }
            

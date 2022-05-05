@@ -105,6 +105,7 @@ impl Stream for MinionStream {
 
         if shared_state.heartbeat {
             if shared_state.area_exhausted {
+                shared_state.heartbeat = false;
                 return Poll::Ready(None);
             }
             shared_state.heartbeat = false;
@@ -145,6 +146,7 @@ impl MinionStream {
                                     };
                                 },
                                 None => {
+                                    shared_state.heartbeat = true;
                                     shared_state.area_exhausted = true;
                                     break;
                                 }
