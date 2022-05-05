@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::error::Error;
-use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use futures::{prelude::*, select};
@@ -10,7 +9,7 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 use serde_json;
 use ndarray::Array2;
 
-use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, mothership_bot, split_mission_area};
+use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, split_mission_area};
 
 
 #[async_std::main]
@@ -28,17 +27,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             complete: 0,
         }
     };
-    
-    { // Aquire lock and create initial tasks
-        let mut tasks = state.tasks.lock().unwrap();
-        tasks.push_back(Coordinate {x:1, y:1});
-        tasks.push_back(Coordinate {x:2, y:2});
-        tasks.push_back(Coordinate {x:3, y:3});
-    }
-
-    // create robot thread
-    let tasks = Arc::clone(&state.tasks);
-    let _ = thread::spawn(move || mothership_bot(tasks));
 
     // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
@@ -117,6 +105,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             // Split up area amongst minions
                             let splits = split_mission_area(area.clone(), minion_count);
                             let zipped = splits.iter().zip(state.delegate_tasks.minions.clone());
+
+                            println!("{:?}", splits);
 
                             for (subarea, minion) in zipped {
                                 let task_message = DelegateTaskMessage {

@@ -94,7 +94,7 @@ impl Stream for MinionStream {
 
         let mut shared_state = self.shared_state.lock().unwrap();
 
-        if shared_state.ready {
+        if shared_state.ready { // This should be moved to the new method, so that movement is first commenced when ready, currently polling is commenced when ready.
 
             if shared_state.heartbeat {
                 shared_state.heartbeat = false;
@@ -166,8 +166,6 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
         let splits = axis_size / minion_count;
         let rem = axis_size % minion_count; 
 
-        println!("splits: {:?}. rem: {:?}", splits, rem);
-
         if rem > 0 {
             let mut split = area.axis_chunks_iter(Axis(axis), splits);
             let last1 = split.next_back().unwrap(); // `n-1`th element
@@ -177,18 +175,30 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
             let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
 
             let areas = split.chain([joint]).collect::<Vec<_>>();
-            // let mut origins = vec![[0,0]; areas.len()];
 
             let x = areas.iter().clone();
-            let x = x.map(|value| ([0,0], value.to_owned()));
+            let x = x.map(|value| value.to_owned());
+            let mut step = splits as i32;
+            let mut origins = vec![[0i32,0]; x.len()];
+            for i in origins.iter_mut().skip(1) {
+                i[axis] += step;
+                step += step;
+            };
+            let y = origins.into_iter().zip(x);
+            
+            return y.collect::<Vec<_>>();
 
-            return x.collect::<Vec<_>>();
-
-            // return split.chain([joint]).collect::<Vec<_>>();
         } else {
             let areas = area.axis_chunks_iter(Axis(axis), splits);
-            let x = areas.map(|value| ([0,0], value.to_owned()));
-            return x.collect::<Vec<_>>();
+            let x = areas.map(|value| value.to_owned());
+            let mut step = splits as i32;
+            let mut origins = vec![[0i32,0]; x.len()];
+            for i in origins.iter_mut().skip(1) {
+                i[axis] += step;
+                step += step;
+            };
+            let y = origins.into_iter().zip(x);
+            return y.collect::<Vec<_>>();
         }
 
     } else {

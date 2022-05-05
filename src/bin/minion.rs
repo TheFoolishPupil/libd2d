@@ -84,7 +84,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             { // update state
                                 let mut state = state.lock().unwrap();
                                 state.mission_area = Some(task.area);
-                                println!("GLOBAL COOR: {:?}", task.global_coordinates);
+                                state.position = task.global_coordinates;
+                                println!("GLOBAL COOR: {:?}", state.position);
                             }
                             println!("{:?}", state);
 

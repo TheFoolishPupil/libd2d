@@ -62,7 +62,7 @@ fn main () {
             println!("COOR:{:?} SPLIT:{:?}\n", dim, i);
             dim[axis] += splits;
         }
-        
+
     }
 
     // Use this for minion to traverse array.
@@ -70,4 +70,17 @@ fn main () {
     //     println!("{:?}", i);
     // }
 
+    let foo = [0, 1, 2, 3];
+    let mut step = 4;
+    let mut x = vec![[0, 0]; foo.len()];
+
+    for i in x.iter_mut().skip(1) {
+        i[0] += step;
+        step += step;
+    }
+
+    println!("{:?}", x);
+    let bar = foo.iter().map(|x| ([0,0], x)).collect::<Vec<_>>();
+
+    println!("{:?}", bar);
 }
