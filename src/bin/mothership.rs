@@ -37,9 +37,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let transport = libp2p::development_transport(local_key.clone()).await?;
 
     // Create a Gossipsub topic
-    let topic_heartbeat = Topic::new("heartbeat");
     let topic_new_mission = Topic::new("new_mission");
     let topic_delegate_task = Topic::new("delegate_task");
+    let topic_poi = Topic::new("poi");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -56,9 +56,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             gossipsub::Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
                 .expect("Correct configuration");
 
-        gossipsub.subscribe(&topic_heartbeat).unwrap();
         gossipsub.subscribe(&topic_new_mission).unwrap();
         gossipsub.subscribe(&topic_delegate_task).unwrap();
+        gossipsub.subscribe(&topic_poi).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -86,11 +86,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     message,
                 }) => {
                     match message.topic.as_str() {
-
-                        "heartbeat" => {
-                            let heartbeat: Minion = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
-                            println!("{:?}", heartbeat);
-                        },
 
                         "new_mission" => {
 
@@ -123,6 +118,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                 }
                             }
                         },
+
+                        "poi" => {
+                            let poi: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
+                            println!("RECEIVED POI: {:?}", poi);
+                        }
 
                         _ => println!("Unknown topic"),
                     };

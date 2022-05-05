@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let transport = libp2p::development_transport(local_key.clone()).await?;
 
     let topic_delegate_task = Topic::new("delegate_task");
-    let topic_heartbeat = Topic::new("heartbeat");
+    let topic_poi = Topic::new("poi");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .expect("Correct configuration");
 
         gossipsub.subscribe(&topic_delegate_task).unwrap();
-        gossipsub.subscribe(&topic_heartbeat).unwrap();
+        gossipsub.subscribe(&topic_poi).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -108,11 +108,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
 
         x = poi_stream.select_next_some() => {
-            println!("POI_STREAM: {:?}", x);
             if x.poi {
                 let state = state.lock().unwrap();
-                println!("POI at {:?}", x.position);
-                println!("POI)ADJ at {:?}", x.position + state.global_position);
+                let adjusted_poi = x.position + state.global_position;
+                drop(state);
+                let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
+                if let Err(e) = swarm
+                    .behaviour_mut()
+                    .publish(topic_poi.clone(), poi_serialized.as_bytes())
+                {
+                    println!("Publish error: {:?}", e);
+                }
             }
         }
 
