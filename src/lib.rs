@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::ops::Add;
 use std::vec::IntoIter;
 use std::time::Duration;
@@ -7,7 +8,6 @@ use std::thread;
 use futures::task::Waker;
 use async_std::stream::Stream;
 use core::pin::Pin;
-use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use ndarray::{Array2, Axis, concatenate};
@@ -20,8 +20,8 @@ pub struct MothershipState {
     pub position: Coordinate,
     pub mission_status: MissionStatus,
     pub mission_area: Option<Array2<u32>>,
-    pub tasks: Arc<Mutex<VecDeque<Coordinate>>>,
     pub delegate_tasks: DelegateTasks,
+    pub points_of_interest: VecDeque<Coordinate>,
 }
 
 #[derive(Debug)]
@@ -32,7 +32,6 @@ pub struct MinionState  {
     pub local_position: Coordinate,
     pub area_exhausted: bool,
     pub poi: bool,
-    // pub mission_area: Option<Array2<u32>>,
     pub mission_area: Option<IntoIter<((i32, i32), u32)>>,
     pub waker: Option<Waker>,
 }
@@ -105,6 +104,9 @@ impl Stream for MinionStream {
         let mut shared_state = self.shared_state.lock().unwrap();
 
         if shared_state.heartbeat {
+            if shared_state.area_exhausted {
+                return Poll::Ready(None);
+            }
             shared_state.heartbeat = false;
             return Poll::Ready(Some(MinionHeartbeat {
                 position: shared_state.local_position.clone(),
@@ -125,7 +127,7 @@ impl MinionStream {
         let thread_shared_state = shared_state.clone();
         thread::spawn(move || {
             loop {
-                thread::sleep(Duration::from_secs(1));
+                thread::sleep(Duration::from_millis(100));
                 let mut shared_state = thread_shared_state.lock().unwrap();
 
                 if shared_state.ready {
@@ -143,8 +145,8 @@ impl MinionStream {
                                     };
                                 },
                                 None => {
-                                    println!("Area area_exhausted");
-                                    // Signal to retrun Poll::Ready(None)
+                                    shared_state.area_exhausted = true;
+                                    break;
                                 }
                             }
                         }
@@ -152,8 +154,9 @@ impl MinionStream {
                             panic!("No mission area!");
                         }
                     }
-                }
+                }  
             }
+            println!("Done searching!");
         });
 
         MinionStream { shared_state }

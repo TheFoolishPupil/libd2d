@@ -33,6 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let topic_delegate_task = Topic::new("delegate_task");
     let topic_poi = Topic::new("poi");
+    let topic_task_complete = Topic::new("task_complete");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -50,6 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         gossipsub.subscribe(&topic_delegate_task).unwrap();
         gossipsub.subscribe(&topic_poi).unwrap();
+        gossipsub.subscribe(&topic_task_complete).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -61,7 +63,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let thread_shared_state = Arc::clone(&state);
-    let mut poi_stream = MinionStream::new(thread_shared_state).fuse();
+    let poi_stream = MinionStream::new(thread_shared_state);
+    let mut poi_stream = poi_stream.chain(futures::stream::iter(std::iter::from_fn(|| { dbg!("ended"); None }))).fuse();
 
     loop {
         select! {
@@ -107,19 +110,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 _ => {}
             },
 
-        x = poi_stream.select_next_some() => {
-            if x.poi {
-                let state = state.lock().unwrap();
-                let adjusted_poi = x.position + state.global_position;
-                drop(state);
-                let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
-                if let Err(e) = swarm
-                    .behaviour_mut()
-                    .publish(topic_poi.clone(), poi_serialized.as_bytes())
-                {
-                    println!("Publish error: {:?}", e);
+        x = poi_stream.next() => {
+            match x {
+                Some(x) => {
+                     if x.poi {
+                        let state = state.lock().unwrap();
+                        let adjusted_poi = x.position + state.global_position;
+                        drop(state);
+                        let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
+                        if let Err(e) = swarm
+                            .behaviour_mut()
+                            .publish(topic_poi.clone(), poi_serialized.as_bytes())
+                        {
+                            println!("Publish error: {:?}", e);
+                        }
+                    };
+                    let state = state.lock().unwrap();
+                    if state.area_exhausted {
+                        println!("task-complete");
+                        drop(state);
+                        if let Err(e) = swarm
+                            .behaviour_mut()
+                            .publish(topic_poi.clone(), "Done".as_bytes())
+                        {
+                            println!("Publish error: {:?}", e);
+                        }
+                    }
+                },
+                None => {
+                    dbg!("NONE");
                 }
             }
+           
+
         }
 
         }

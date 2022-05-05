@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use futures::{prelude::*, select};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, PeerId};
@@ -9,7 +8,7 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 use serde_json;
 use ndarray::Array2;
 
-use libd2d::{MothershipState, Minion, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, split_mission_area};
+use libd2d::{MothershipState, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, split_mission_area};
 
 
 #[async_std::main]
@@ -20,12 +19,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         position: Coordinate { x: -1, y: -1 },
         mission_status: MissionStatus::Pending,
         mission_area: None,
-        tasks: Arc::new(Mutex::new(VecDeque::new())),
         delegate_tasks: DelegateTasks {
             minions: HashMap::new(),
             total: 0,
             complete: 0,
-        }
+        },
+        points_of_interest: VecDeque::new(),
     };
 
     // Create a random PeerId
@@ -40,6 +39,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let topic_new_mission = Topic::new("new_mission");
     let topic_delegate_task = Topic::new("delegate_task");
     let topic_poi = Topic::new("poi");
+    let topic_task_complete = Topic::new("task_complete");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -59,6 +59,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         gossipsub.subscribe(&topic_new_mission).unwrap();
         gossipsub.subscribe(&topic_delegate_task).unwrap();
         gossipsub.subscribe(&topic_poi).unwrap();
+        gossipsub.subscribe(&topic_task_complete).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -121,7 +122,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                         "poi" => {
                             let poi: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
-                            println!("RECEIVED POI: {:?}", poi);
+                            state.points_of_interest.push_front(poi);
+                        },
+
+                        "task_complete" => {
+                            println!("task-complete");
                         }
 
                         _ => println!("Unknown topic"),
