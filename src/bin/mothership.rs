@@ -117,9 +117,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                             // Split up area amongst minions
                             let splits = split_mission_area(area.clone(), minion_count);
+                            for split in splits.clone() {
+                                println!("{:?}", split);
+                            };
                             let zipped = splits.iter().zip(state.delegate_tasks.minions.clone());
 
-                            println!("{:?}", splits);
 
                             for (subarea, minion) in zipped {
                                 let task_message = DelegateTaskMessage {

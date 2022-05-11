@@ -143,6 +143,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
                     let coor_serialized = serde_json::to_string(&adhjusted_coor).unwrap();
 
+                    println!("{:?}", adhjusted_coor);
+
                     if x.poi { // Publish to poi if current locaiton is a poi.
                         if let Err(e) = swarm
                             .behaviour_mut()
