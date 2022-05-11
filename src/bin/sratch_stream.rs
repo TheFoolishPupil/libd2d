@@ -1,15 +1,14 @@
-use std::error::Error;
+use async_std::pin::Pin;
+use async_std::stream;
+use async_std::task::{Context, Poll, Waker};
 use futures::{prelude::*, select};
+use std::error::Error;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use std::sync::{Arc, Mutex};
-use async_std::pin::Pin;
-use async_std::task::{Context, Poll, Waker};
-use async_std::stream;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-
     let shared_state = Arc::new(Mutex::new(SharedState {
         coordinate: None,
         counter: 0,
@@ -46,32 +45,25 @@ pub struct SharedState {
 impl stream::Stream for TimerStream {
     type Item = u32;
 
-    fn poll_next(
-        self: Pin<&mut Self>, 
-        cx: &mut Context<'_>
-    ) -> Poll<Option<Self::Item>> {
-
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut shared_state = self.shared_state.lock().unwrap();
 
         match shared_state.coordinate {
-
             Some(coordinate) => {
                 shared_state.coordinate = None;
                 Poll::Ready(Some(coordinate))
             }
             None => {
-            shared_state.waker = Some(cx.waker().clone());
-            Poll::Pending
+                shared_state.waker = Some(cx.waker().clone());
+                Poll::Pending
             }
         }
     }
 }
 
 impl TimerStream {
-
     // This should be a function that searches area, it should take an arc reference to the state, instead of owning it.
     pub fn new(shared_state: Arc<Mutex<SharedState>>) -> Self {
-
         let thread_shared_state = shared_state.clone();
         thread::spawn(move || {
             loop {

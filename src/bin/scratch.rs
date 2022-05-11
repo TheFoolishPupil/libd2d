@@ -1,19 +1,19 @@
 #[macro_use(array)]
 extern crate ndarray;
-use ndarray::{Axis, concatenate};
+use ndarray::{concatenate, Axis};
 
-
-fn main () {
-
+fn main() {
     let minion_count = 3;
 
-    let arr = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0]];
+    let arr = array![
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0]
+    ];
 
     // let arr = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     //                 [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -30,11 +30,16 @@ fn main () {
     //                 [13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     //                 [0, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
 
-    let (axis, axis_size) = arr.shape().iter().enumerate().max_by_key(|(_,v)| *v).unwrap();
+    let (axis, axis_size) = arr
+        .shape()
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, v)| *v)
+        .unwrap();
     println!("Largest axis: {:?} with size: {:?}", axis, axis_size);
 
     let splits = axis_size / minion_count;
-    let rem = axis_size % minion_count; 
+    let rem = axis_size % minion_count;
 
     println!("splits: {:?}. rem: {:?}", splits, rem);
 
@@ -47,27 +52,24 @@ fn main () {
         let joint = concatenate(Axis(axis), &[last2, last1]).unwrap();
 
         let split = split.chain([joint]);
-        let mut dim = [0,0];
+        let mut dim = [0, 0];
 
         for i in split {
             println!("COOR:{:?} SPLIT:{:?}\n", dim, i);
             dim[axis] += splits;
         }
-
     } else {
-
-        let mut dim = [0,0];
+        let mut dim = [0, 0];
 
         for i in split {
             println!("COOR:{:?} SPLIT:{:?}\n", dim, i);
             dim[axis] += splits;
         }
-
     }
 
     // Use this for minion to traverse array.
     for i in arr.indexed_iter() {
-        println!("x: {:?}, y: {:?}, value: {:?}", i.0.0, i.0.1, i.1);
+        println!("x: {:?}, y: {:?}, value: {:?}", i.0 .0, i.0 .1, i.1);
     }
 
     // let foo = [0, 1, 2, 3];

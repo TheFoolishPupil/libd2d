@@ -1,15 +1,17 @@
 use futures::{prelude::*, select};
-use libp2p::gossipsub::{ GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode };
+use libd2d::Coordinate;
+use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
+use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
 #[macro_use(array)]
 extern crate ndarray;
 use serde_json;
 
+
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-
     // Create a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
@@ -20,9 +22,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // Create a Gossipsub topic
     let topic_new_mission = Topic::new("new_mission");
+    let topic_discovery = Topic::new("discovery");
+    let topic_report = Topic::new("reporting");
 
     let mut swarm = {
-
         // Set a custom gossipsub
         let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
@@ -37,6 +40,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 .expect("Correct configuration");
 
         gossipsub.subscribe(&topic_new_mission).unwrap();
+        gossipsub.subscribe(&topic_discovery).unwrap();
+        gossipsub.subscribe(&topic_report).unwrap();
 
         // build the swarm
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
@@ -49,13 +54,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         Err(e) => println!("Dial {:?} failed: {:?}", address, e),
     };
 
+    // Hardcode local addresses of minions. This is needed because the ports cannot be shared on the same machine.
+    let minion_addresses = [
+        "/ip4/127.0.0.1/tcp/60741",
+        "/ip4/127.0.0.1/tcp/60742",
+        "/ip4/127.0.0.1/tcp/60743",
+        "/ip4/127.0.0.1/tcp/60744",
+        "/ip4/127.0.0.1/tcp/60745",
+        "/ip4/127.0.0.1/tcp/60746",
+    ];
+
+    // let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
+
     loop {
         select! {
             event = swarm.select_next_some() => match event {
 
                 // Once we know we have subscribers, send the mission
                 SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
-                    topic: t, 
+                    topic: t,
                     ..
                 })  if t == topic_new_mission.hash() => {
 
@@ -90,9 +107,36 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     };
                 },
 
+                SwarmEvent::Behaviour(GossipsubEvent::Message {
+                    propagation_source: _peer_id,
+                    message_id: _id,
+                    message,
+                }) => {
+                    match message.topic.as_str() {
+
+                        "discovery" => {
+
+                            let minions: HashMap<PeerId, Coordinate> = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
+                            for (i, (_, _)) in minions.iter().enumerate() {
+                                let address: Multiaddr = minion_addresses[i].parse().unwrap();
+                                match swarm.dial(address.clone()) {
+                                    Ok(_) => println!("Dialed {:?}", address),
+                                    Err(e) => println!("Dial {:?} failed: {:?}", address, e),
+                                };
+                            }
+                        }
+
+                        "reporting" => {
+                            let poi: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
+                            println!("{:?}", poi);
+                        },
+
+                        _ => {}
+                    }
+                },
+
                 _ => {}
             }
         }
     }
-
 }

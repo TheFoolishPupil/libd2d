@@ -1,19 +1,18 @@
-use std::collections::VecDeque;
-use std::ops::Add;
-use std::vec::IntoIter;
-use std::time::Duration;
-use futures::task::Poll;
-use futures::task::Context;
-use std::thread;
-use futures::task::Waker;
 use async_std::stream::Stream;
 use core::pin::Pin;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use ndarray::{Array2, Axis, concatenate};
+use futures::task::Context;
+use futures::task::Poll;
+use futures::task::Waker;
 use libp2p::PeerId;
-use serde::{Serialize, Deserialize};
-
+use ndarray::{concatenate, Array2, Axis};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::ops::Add;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+use std::vec::IntoIter;
 
 #[derive(Debug)]
 pub struct MothershipState {
@@ -25,7 +24,7 @@ pub struct MothershipState {
 }
 
 #[derive(Debug)]
-pub struct MinionState  {
+pub struct MinionState {
     pub heartbeat: bool,
     pub ready: bool,
     pub global_position: Coordinate,
@@ -93,14 +92,9 @@ impl Add for Coordinate {
 }
 
 impl Stream for MinionStream {
-
     type Item = MinionHeartbeat;
 
-    fn poll_next(
-        self: Pin<&mut Self>, 
-        cx: &mut Context<'_>
-    ) -> Poll<Option<Self::Item>> {
-
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut shared_state = self.shared_state.lock().unwrap();
 
         if shared_state.heartbeat {
@@ -117,48 +111,41 @@ impl Stream for MinionStream {
             shared_state.waker = Some(cx.waker().clone());
             return Poll::Pending;
         }
-
     }
 }
 
 impl MinionStream {
-
     pub fn new(shared_state: Arc<Mutex<MinionState>>) -> Self {
-
         let thread_shared_state = shared_state.clone();
-        thread::spawn(move || {
-            loop {
-                thread::sleep(Duration::from_millis(100));
-                let mut shared_state = thread_shared_state.lock().unwrap();
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(100));
+            let mut shared_state = thread_shared_state.lock().unwrap();
 
-                if shared_state.ready {
-
-                    match &mut shared_state.mission_area {
-                        Some(area) => {
-                            let current_location = area.next();
-                            match current_location {
-                                Some(((x, y), poi)) => {
-                                    shared_state.local_position = Coordinate { x, y };
-                                    shared_state.poi = if poi != 0 { true } else { false };
-                                    shared_state.heartbeat = true;
-                                    if let Some(waker) = shared_state.waker.take() {
-                                        waker.wake()
-                                    };
-                                },
-                                None => {
-                                    shared_state.heartbeat = true;
-                                    shared_state.area_exhausted = true;
-                                    break;
-                                }
+            if shared_state.ready {
+                match &mut shared_state.mission_area {
+                    Some(area) => {
+                        let current_location = area.next();
+                        match current_location {
+                            Some(((x, y), poi)) => {
+                                shared_state.local_position = Coordinate { x, y };
+                                shared_state.poi = if poi != 0 { true } else { false };
+                                shared_state.heartbeat = true;
+                                if let Some(waker) = shared_state.waker.take() {
+                                    waker.wake()
+                                };
+                            }
+                            None => {
+                                shared_state.heartbeat = true;
+                                shared_state.area_exhausted = true;
+                                break;
                             }
                         }
-                        None => {
-                            panic!("No mission area!");
-                        }
                     }
-                }  
+                    None => {
+                        panic!("No mission area!");
+                    }
+                }
             }
-            println!("Done searching!");
         });
 
         MinionStream { shared_state }
@@ -166,12 +153,16 @@ impl MinionStream {
 }
 
 pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 2], Array2<u32>)> {
-    let (axis, axis_size) = area.shape().iter().enumerate().max_by_key(|(_,v)| *v).unwrap();
-    println!("Largest axis: {:?} with size: {:?}", axis, axis_size);
+    let (axis, axis_size) = area
+        .shape()
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, v)| *v)
+        .unwrap();
 
     if minion_count > 1 {
         let splits = axis_size / minion_count;
-        let rem = axis_size % minion_count; 
+        let rem = axis_size % minion_count;
 
         if rem > 0 {
             let mut split = area.axis_chunks_iter(Axis(axis), splits);
@@ -186,30 +177,27 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
             let x = areas.iter().clone();
             let x = x.map(|value| value.to_owned());
             let mut step = splits as i32;
-            let mut origins = vec![[0i32,0]; x.len()];
+            let mut origins = vec![[0i32, 0]; x.len()];
             for i in origins.iter_mut().skip(1) {
                 i[axis] += step;
                 step += step;
-            };
+            }
             let y = origins.into_iter().zip(x);
 
             return y.collect::<Vec<_>>();
-
         } else {
             let areas = area.axis_chunks_iter(Axis(axis), splits);
             let x = areas.map(|value| value.to_owned());
             let mut step = splits as i32;
-            let mut origins = vec![[0i32,0]; x.len()];
+            let mut origins = vec![[0i32, 0]; x.len()];
             for i in origins.iter_mut().skip(1) {
                 i[axis] += step;
                 step += step;
-            };
+            }
             let y = origins.into_iter().zip(x);
             return y.collect::<Vec<_>>();
         }
-
     } else {
-        return vec![([0,0], area)];
+        return vec![([0, 0], area)];
     }
-
 }

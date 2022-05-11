@@ -1,16 +1,14 @@
-use std::error::Error;
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
 use futures::{prelude::*, select};
-use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
 use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
+use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
+use std::error::Error;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use libd2d::{ DelegateTaskMessage, MinionState, Coordinate, MinionStream };
-
+use libd2d::{Coordinate, DelegateTaskMessage, MinionState, MinionStream};
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-
     // Set initial state
     let state = Arc::new(Mutex::new(MinionState {
         heartbeat: false,
@@ -20,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         area_exhausted: false,
         poi: false,
         mission_area: None,
-        waker: None
+        waker: None,
     }));
 
     // Create a random PeerId
@@ -34,10 +32,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let topic_delegate_task = Topic::new("delegate_task");
     let topic_poi = Topic::new("poi");
     let topic_task_complete = Topic::new("task_complete");
+    let topic_report = Topic::new("reporting");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
-
         let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
             .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
@@ -52,6 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         gossipsub.subscribe(&topic_delegate_task).unwrap();
         gossipsub.subscribe(&topic_poi).unwrap();
         gossipsub.subscribe(&topic_task_complete).unwrap();
+        gossipsub.subscribe(&topic_report).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -62,10 +61,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => println!("Dial {:?} failed: {:?}", address, e),
     };
 
+    let mut listen_success: Option<()> = None;
+    for addr in [
+        "/ip4/127.0.0.1/tcp/60741",
+        "/ip4/127.0.0.1/tcp/60742",
+        "/ip4/127.0.0.1/tcp/60743",
+        "/ip4/127.0.0.1/tcp/60744",
+        "/ip4/127.0.0.1/tcp/60745",
+        "/ip4/127.0.0.1/tcp/60746",
+    ] {
+        match swarm.listen_on(addr.parse().unwrap()) {
+            Ok(_) => {
+                listen_success = Some(());
+                break;
+            }
+            Err(_) => {}
+        }
+    }
+
+    if let None = listen_success {
+        panic!("No available addresses!");
+    };
+
     let thread_shared_state = Arc::clone(&state);
     let poi_stream = MinionStream::new(thread_shared_state);
-    let mut poi_stream = poi_stream.chain(futures::stream::iter(std::iter::from_fn(|| { None }))).fuse();
-
+    let mut poi_stream = poi_stream
+        .chain(futures::stream::iter(std::iter::from_fn(|| None)))
+        .fuse();
 
     loop {
         select! {
@@ -79,7 +101,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                         "delegate_task" => {
 
-                            let task: DelegateTaskMessage = 
+                            let task: DelegateTaskMessage =
                                 serde_json::from_str(
                                     &String::from_utf8_lossy(&message.data)
                                 ).unwrap();
@@ -114,17 +136,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         x = poi_stream.next() => {
             match x {
                 Some(x) => {
-                     if x.poi {
-                        let state = state.lock().unwrap();
-                        let adjusted_poi = x.position + state.global_position;
-                        drop(state);
-                        let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
+                    let state = state.lock().unwrap();
+                    let adjusted_poi = x.position + state.global_position;
+                    drop(state);
+                    let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
+
+                    if x.poi { // Publish to poi if current locaiton is a poi.
                         if let Err(e) = swarm
                             .behaviour_mut()
                             .publish(topic_poi.clone(), poi_serialized.as_bytes())
                         {
                             println!("Publish error: {:?}", e);
                         }
+                    };
+                    if let Err(e) = swarm
+                        .behaviour_mut()
+                        .publish(topic_report.clone(), poi_serialized.as_bytes())
+                    {
+                        println!("Publish error: {:?}", e);
                     };
                 },
                 None => {
@@ -137,7 +166,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             }
-           
+
 
         }
 

@@ -1,19 +1,20 @@
+use futures::{prelude::*, select};
+use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
+use libp2p::{gossipsub, identity, swarm::SwarmEvent, PeerId};
+use ndarray::Array2;
+use serde_json;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::error::Error;
 use std::time::Duration;
-use futures::{prelude::*, select};
-use libp2p::{gossipsub, identity, swarm::SwarmEvent, PeerId};
-use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
-use serde_json;
-use ndarray::Array2;
 
-use libd2d::{MothershipState, MissionStatus, Coordinate, DelegateTasks, DelegateTaskMessage, split_mission_area};
-
+use libd2d::{
+    split_mission_area, Coordinate, DelegateTaskMessage, DelegateTasks, MissionStatus,
+    MothershipState,
+};
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-
     // Set initial state
     let mut state = MothershipState {
         position: Coordinate { x: -1, y: -1 },
@@ -40,10 +41,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let topic_delegate_task = Topic::new("delegate_task");
     let topic_poi = Topic::new("poi");
     let topic_task_complete = Topic::new("task_complete");
+    let topic_discovery = Topic::new("discovery");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
-
         let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
             .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
@@ -60,7 +61,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         gossipsub.subscribe(&topic_delegate_task).unwrap();
         gossipsub.subscribe(&topic_poi).unwrap();
         gossipsub.subscribe(&topic_task_complete).unwrap();
-
+        gossipsub.subscribe(&topic_discovery).unwrap();
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
 
@@ -75,10 +76,26 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
                     peer_id,
                     topic,
-                }) if topic == topic_delegate_task.hash() => {
-                    // update delegate tasks according to peers subscribed to topic
-                    state.delegate_tasks.minions.entry(peer_id).or_insert(Coordinate {x:0, y:0});
-                    // println!("{:?}", state);
+                }) => {
+                    match topic {
+                        hash if hash == topic_delegate_task.hash() => {
+                            // update delegate tasks according to peers subscribed to topic
+                            state.delegate_tasks.minions.entry(peer_id).or_insert(Coordinate {x:0, y:0});
+                        },
+                        hash if hash == topic_discovery.hash() => {
+
+                            let peer_list = serde_json::to_string(&state.delegate_tasks.minions).unwrap();
+
+                            if let Err(e) = swarm
+                                .behaviour_mut()
+                                .publish(topic_discovery.clone(), peer_list.as_bytes())
+                            {
+                                println!("Publish error: {:?}", e);
+                            }
+                        },
+
+                        _ => {}
+                    }
                 },
 
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
@@ -126,7 +143,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                         },
 
                         "task_complete" => {
-                            println!("task-complete");
+                            state.delegate_tasks.complete += 1;
+                            if state.delegate_tasks.complete == state.delegate_tasks.total {
+                                dbg!("ALL TASKS COMPLETE!");
+                                println!("{:?}", state.points_of_interest);
+                            }
                         }
 
                         _ => println!("Unknown topic"),
