@@ -160,12 +160,31 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
         .max_by_key(|(_, v)| *v)
         .unwrap();
     if minion_count > 1 {
-        let splits = axis_size / minion_count;
+        let mut splits = axis_size / minion_count;
         let rem = axis_size % minion_count;
 
         dbg!(splits, rem);
 
-        if rem > 0 && rem < splits {
+
+
+        if rem > 0{
+
+            if rem > splits { 
+                splits += 1;
+                let split = area.axis_chunks_iter(Axis(axis), splits);
+                let areas = split.map(|x| x.to_owned()).collect::<Vec<_>>();
+                let x = areas.iter().clone();
+                let x = x.map(|value| value.to_owned());
+                let mut step = splits as i32;
+                let mut origins = vec![[0i32, 0]; x.len()];
+                for i in origins.iter_mut().skip(1) {
+                    i[axis] += step;
+                    step += splits as i32;
+                }
+                let y = origins.into_iter().zip(x);
+                return y.collect::<Vec<_>>();
+            };
+
             let mut split = area.axis_chunks_iter(Axis(axis), splits);
             let last1 = split.next_back().unwrap(); // `n-1`th element
             let last2 = split.next_back().unwrap(); // `n-2`th element
@@ -177,31 +196,6 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
 
             let x = areas.iter().clone();
             let x = x.map(|value| value.to_owned());
-            dbg!(x.len());
-            let mut step = splits as i32;
-            let mut origins = vec![[0i32, 0]; x.len()];
-            for i in origins.iter_mut().skip(1) {
-                i[axis] += step;
-                step += splits as i32;
-            }
-            let y = origins.into_iter().zip(x);
-
-            return y.collect::<Vec<_>>();
-
-        } else if rem > 0 && rem > splits {
-            let mut split = area.axis_chunks_iter(Axis(axis), splits);
-            let last1 = split.next_back().unwrap(); // `n-1`th element
-            let last2 = split.next_back().unwrap(); // `n-2`th element
-            let last3 = split.next_back().unwrap(); // `n-3`th element
-
-            let split = split.map(|x| x.to_owned());
-            let joint = concatenate(Axis(axis), &[last3, last2, last1]).unwrap();
-
-            let areas = split.chain([joint]).collect::<Vec<_>>();
-
-            let x = areas.iter().clone();
-            let x = x.map(|value| value.to_owned());
-            dbg!(x.len());
             let mut step = splits as i32;
             let mut origins = vec![[0i32, 0]; x.len()];
             for i in origins.iter_mut().skip(1) {
