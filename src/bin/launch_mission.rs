@@ -9,7 +9,6 @@ use std::time::Duration;
 extern crate ndarray;
 use serde_json;
 
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Create a random PeerId
@@ -64,6 +63,27 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "/ip4/127.0.0.1/tcp/60746",
     ];
 
+    let mission_area: ndarray::Array2<u32> = array![
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ];
+
+    let mut result_area = mission_area.clone();
+    for cell in result_area.iter_mut() {
+        *cell = 0;
+    }
+
     // let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
 
     loop {
@@ -75,27 +95,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     topic: t,
                     ..
                 })  if t == topic_new_mission.hash() => {
-
-                    //     let mission_area: ndarray::Array2<u32> = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    // [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    // [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    // [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
-                    // [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
-                    // [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
-                    // [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0]];
-                    let mission_area: ndarray::Array2<u32> = array![[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                                    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                                    [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                                    [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                                    [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
-                                                                    [0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
-                                                                    [0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0],
-                                                                    [0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0],
-                                                                    [0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0],
-                                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0],
-                                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0],
-                                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12],
-                                                                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
 
                     let serialized = serde_json::to_string(&mission_area).unwrap();
 
@@ -127,8 +126,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                         }
 
                         "reporting" => {
-                            let poi: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
-                            println!("{:?}", poi);
+                            let minion_coor: (Coordinate, bool) = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
+                            if minion_coor.1 {
+                                result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 2;
+                            } else {
+                                result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 1;
+                            }
+                            println!("{:?}", result_area);
                         },
 
                         _ => {}
