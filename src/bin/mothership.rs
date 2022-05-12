@@ -42,6 +42,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let topic_poi = Topic::new("poi");
     let topic_task_complete = Topic::new("task_complete");
     let topic_discovery = Topic::new("discovery");
+    let topic_report_mothership = Topic::new("reporting_mothership");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -62,6 +63,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         gossipsub.subscribe(&topic_poi).unwrap();
         gossipsub.subscribe(&topic_task_complete).unwrap();
         gossipsub.subscribe(&topic_discovery).unwrap();
+        gossipsub.subscribe(&topic_report_mothership).unwrap();
+
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
 
@@ -156,14 +159,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     let mut min = (state.position.clone(), 10000f64);
                                     for poi in &pois {
                                         let distance = state.position.manhatten_distance(*poi);
-                                        println!("{:?}", distance);
                                         if distance < min.1 {
                                             min = (*poi, distance);
                                         }
                                     };
                                     state.position = min.0;
                                     pois.retain(|c| *c != min.0);
-                                    println!("\n{:?}\n", pois);
+                                    let serialized = serde_json::to_string(&min.0).unwrap();
+                                    std::thread::sleep(Duration::from_millis(1000));
+                                    println!("sending!");
+                                    if let Err(e) = swarm
+                                        .behaviour_mut()
+                                        .publish(topic_report_mothership.clone(), serialized.as_bytes())
+                                    {
+                                        println!("Publish error: {:?}", e);
+                                    };
                                 }
 
                             }

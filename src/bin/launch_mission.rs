@@ -23,6 +23,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let topic_new_mission = Topic::new("new_mission");
     let topic_discovery = Topic::new("discovery");
     let topic_report = Topic::new("reporting");
+    let topic_report_mothership = Topic::new("reporting_mothership");
 
     let mut swarm = {
         // Set a custom gossipsub
@@ -41,6 +42,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         gossipsub.subscribe(&topic_new_mission).unwrap();
         gossipsub.subscribe(&topic_discovery).unwrap();
         gossipsub.subscribe(&topic_report).unwrap();
+        gossipsub.subscribe(&topic_report_mothership).unwrap();
 
         // build the swarm
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
@@ -119,13 +121,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                         }
 
                         "reporting" => {
+
                             let minion_coor: (Coordinate, bool) = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             if minion_coor.1 {
                                 result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 2;
                             } else {
                                 result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 1;
                             }
-                            println!("{:?}", result_area);
+                            println!("\n{:?}", result_area);
+                        },
+
+                        "reporting_mothership" => {
+                            println!("Received Action from mothership.");
+                            let mothership_coor: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
+                            result_area[[mothership_coor.x as usize, mothership_coor.y as usize]] = 1;
+                            println!("\n{:?}", result_area);
                         },
 
                         _ => {}
