@@ -53,7 +53,7 @@ pub enum MissionStatus {
     Complete,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Coordinate {
     pub x: i32,
     pub y: i32,
@@ -88,6 +88,20 @@ impl Add for Coordinate {
             x: self.x + other.x,
             y: self.y + other.y,
         }
+    }
+}
+
+impl Coordinate {
+
+    pub fn manhatten_distance(self, other: Self) -> f64 {
+        {self.x - other.x}.abs() as f64 + {self.y - other.y}.abs() as f64
+    }
+
+    pub fn euclidean_distance(self, other: Self) -> f64 {
+        let x_dist = self.x - other.x;
+        let y_dist = self.y - other.y;
+        let sum = { x_dist.pow(2) + y_dist.pow(2) } as f64;
+        sum.sqrt()
     }
 }
 

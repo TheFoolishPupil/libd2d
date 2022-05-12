@@ -149,6 +149,23 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             if state.delegate_tasks.complete == state.delegate_tasks.total {
                                 dbg!("ALL TASKS COMPLETE!");
                                 println!("{:?}", state.points_of_interest);
+
+                                let mut pois = state.points_of_interest.clone();
+
+                                while !pois.is_empty() {
+                                    let mut min = (state.position.clone(), 10000f64);
+                                    for poi in &pois {
+                                        let distance = state.position.manhatten_distance(*poi);
+                                        println!("{:?}", distance);
+                                        if distance < min.1 {
+                                            min = (*poi, distance);
+                                        }
+                                    };
+                                    state.position = min.0;
+                                    pois.retain(|c| *c != min.0);
+                                    println!("\n{:?}\n", pois);
+                                }
+
                             }
                         }
 
