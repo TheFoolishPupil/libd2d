@@ -67,16 +67,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let mission_area: ndarray::Array2<u32> = array![
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
 
     ];
 
     let mut result_area = mission_area.clone();
     for cell in result_area.iter_mut() {
-        *cell = 0;
+        *cell = 1;
     }
 
     // let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             if minion_coor.1 {
                                 result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 2;
                             } else {
-                                result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 1;
+                                result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 0;
                             }
                             println!("\n{:?}", result_area);
                         },

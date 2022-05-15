@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::error::Error;
 use std::time::Duration;
+use async_std::task;
 
 use libd2d::{
     split_mission_area, Coordinate, DelegateTaskMessage, DelegateTasks, MissionStatus,
@@ -166,7 +167,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     state.position = min.0;
                                     pois.retain(|c| *c != min.0);
                                     let serialized = serde_json::to_string(&min.0).unwrap();
-                                    std::thread::sleep(Duration::from_millis(1000));
+                                    task::sleep(Duration::from_secs(1)).await;
                                     println!("sending!");
                                     if let Err(e) = swarm
                                         .behaviour_mut()
