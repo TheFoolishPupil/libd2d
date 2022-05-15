@@ -74,10 +74,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .listen_on("/ip4/127.0.0.1/tcp/60740".parse().unwrap())
         .unwrap();
 
-    let (tx, rx) = unbounded::<Coordinate>();
+    let (tx, mut rx) = unbounded::<Coordinate>();
+
+    // let mut tx_stream = rx.fuse();
 
     loop {
         select! {
+            event = rx.select_next_some() => {
+                dbg!(event);
+            }
             event = swarm.select_next_some() => match event {
 
                 SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
@@ -160,6 +165,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                 let mut pois = state.points_of_interest.clone();
                                 let mut current_position = state.position.clone();
                                 let mut min = (state.position.clone(), 10000f64);
+                                let thread_tx = tx.clone();
 
                                 let _ = task::spawn(async move {
                                     while !pois.is_empty() {
@@ -171,7 +177,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                         };
                                         current_position = min.0;
                                         pois.retain(|c| *c != min.0);
-                                        tx.clone().send(min.0);
+                                        thread_tx.send(min.0).await.expect("receiver hung up");
                                         // let serialized = serde_json::to_string(&min.0).unwrap();
                                         task::sleep(Duration::from_secs(1)).await;
                                         println!("sending!");
