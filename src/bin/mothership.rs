@@ -150,8 +150,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                             // Split up area amongst minions
                             let splits = split_mission_area(area.clone(), minion_count);
-                            for split in splits.clone() {
-                                println!("{:?}", split);
+                            for (i, split) in splits.clone().iter().enumerate() {
+                                println!("\nSplit {} with index {:?}: \n{}", i, split.0, split.1);
                             };
                             let zipped = splits.iter().zip(state.delegate_tasks.minions.clone());
 
@@ -197,11 +197,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                         current_position = min.0;
                                         pois.retain(|c| *c != min.0);
                                         thread_tx.send(Some(min.0)).await.expect("receiver hung up");
-                                        // let serialized = serde_json::to_string(&min.0).unwrap();
+                                        println!("Acting on {:?}", current_position);
                                         task::sleep(Duration::from_millis(50)).await;
                                     };
                                     thread_tx.send(None).await.expect("receiver hung up");
-
+                                    println!("Finished acting.");
                                 });
                             }
                         }

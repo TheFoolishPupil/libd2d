@@ -143,7 +143,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
                     let coor_serialized = serde_json::to_string(&adjusted_coor).unwrap();
 
-                    println!("{:?}", adjusted_coor);
+                    println!{"Searching {:?}. POI: {}", adjusted_coor.0, adjusted_coor.1};
 
                     if x.poi { // Publish to poi if current locaiton is a poi.
                         if let Err(e) = swarm
@@ -161,7 +161,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     };
                 },
                 None => {
-                    println!("task-complete");
+                    println!("Search complete");
                     if let Err(e) = swarm
                         .behaviour_mut()
                         .publish(topic_task_complete.clone(), "".as_bytes())

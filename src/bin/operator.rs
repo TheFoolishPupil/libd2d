@@ -5,8 +5,7 @@ use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
-#[macro_use(array)]
-extern crate ndarray;
+// extern crate ndarray;
 use serde_json;
 use ndarray::Array;
 use ndarray_rand::RandomExt;
@@ -70,7 +69,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "/ip4/127.0.0.1/tcp/60746",
     ];
     
-    let mission_area = Array::random((123, 240), Uniform::new(0, 2));
+    let mission_area = Array::random((16, 24), Uniform::new(0, 2));
 
     let mut result_area = mission_area.clone();
 
@@ -127,11 +126,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             } else {
                                 result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 0;
                             }
-                            println!("\n{:?}", result_area);
                         },
 
                         "reporting_mothership" => {
-                            println!("Received Action from mothership.");
                             let mothership_coor: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             result_area[[mothership_coor.x as usize, mothership_coor.y as usize]] = 1;
                             println!("\n{:?}", result_area);
