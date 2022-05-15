@@ -132,7 +132,7 @@ impl MinionStream {
     pub fn new(shared_state: Arc<Mutex<MinionState>>) -> Self {
         let thread_shared_state = shared_state.clone();
         thread::spawn(move || loop {
-            thread::sleep(Duration::from_millis(20));
+            thread::sleep(Duration::from_millis(50));
             let mut shared_state = thread_shared_state.lock().unwrap();
 
             if shared_state.ready {
