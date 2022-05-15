@@ -169,7 +169,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     state.position = min.0;
                                     pois.retain(|c| *c != min.0);
                                     let serialized = serde_json::to_string(&min.0).unwrap();
-                                    task::sleep(Duration::from_secs(1)).await;
+                                    // task::sleep(Duration::from_secs(1)).await;
                                     println!("sending!");
                                     if let Err(e) = swarm
                                         .behaviour_mut()

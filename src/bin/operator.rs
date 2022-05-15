@@ -8,6 +8,9 @@ use std::time::Duration;
 #[macro_use(array)]
 extern crate ndarray;
 use serde_json;
+use ndarray::Array;
+use ndarray_rand::RandomExt;
+use ndarray_rand::rand_distr::Uniform;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -67,24 +70,31 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "/ip4/127.0.0.1/tcp/60746",
     ];
 
-    let mission_area: ndarray::Array2<u32> = array![
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    let mission_area = Array::random((10, 22), Uniform::new(0, 2));
 
-    ];
+    // let mission_area_1 = Array::random((10, 22), Uniform::new(0, 2));
+    // let mission_area_2 = Array::random((15, 12), Uniform::new(0, 2));
+
+    // let mission_area: ndarray::Array2<u32> = array![
+    //     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    //     [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    //     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    //     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    //     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+
+    // ];
 
     let mut result_area = mission_area.clone();
+    // let mut result_area = mission_area_1.clone();
+    // let mut result_area = mission_area_2.clone();
     for cell in result_area.iter_mut() {
         *cell = 1;
     }
 
-    // let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
 
     loop {
         select! {
+
             event = swarm.select_next_some() => match event {
 
                 // Once we know we have subscribers, send the mission

@@ -132,7 +132,7 @@ impl MinionStream {
     pub fn new(shared_state: Arc<Mutex<MinionState>>) -> Self {
         let thread_shared_state = shared_state.clone();
         thread::spawn(move || loop {
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(10));
             let mut shared_state = thread_shared_state.lock().unwrap();
 
             if shared_state.ready {
@@ -175,7 +175,7 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
         .unwrap();
 
     if minion_count > 1 {
-        
+
         let mut splits = axis_size / minion_count;
         let rem = axis_size % minion_count;
 

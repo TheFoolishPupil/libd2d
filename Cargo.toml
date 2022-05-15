@@ -10,6 +10,7 @@ async-std = { version="1.11.0", features=["attributes"] }
 futures = "0.3.21"
 libp2p = { version="0.44.0", features=["serde"] }
 ndarray = { version = "0.15.4",  features = ["serde"] }
+ndarray-rand = "0.14.0"
 serde = "1.0.136"
 serde_json = { version = "1.0.79" }
 
