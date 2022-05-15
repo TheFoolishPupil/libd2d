@@ -69,24 +69,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "/ip4/127.0.0.1/tcp/60745",
         "/ip4/127.0.0.1/tcp/60746",
     ];
-
-    // let mission_area = Array::random((25, 74), Uniform::new(0, 2));
-
-    // let mission_area_1 = Array::random((10, 22), Uniform::new(0, 2));
-    // let mission_area_2 = Array::random((15, 12), Uniform::new(0, 2));
-
-    let mission_area: ndarray::Array2<u32> = array![
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-
-    ];
+    
+    let mission_area = Array::random((123, 240), Uniform::new(0, 2));
 
     let mut result_area = mission_area.clone();
-    // let mut result_area = mission_area_1.clone();
-    // let mut result_area = mission_area_2.clone();
+
     for cell in result_area.iter_mut() {
         *cell = 1;
     }

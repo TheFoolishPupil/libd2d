@@ -198,7 +198,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                         pois.retain(|c| *c != min.0);
                                         thread_tx.send(Some(min.0)).await.expect("receiver hung up");
                                         // let serialized = serde_json::to_string(&min.0).unwrap();
-                                        task::sleep(Duration::from_millis(100)).await;
+                                        task::sleep(Duration::from_millis(50)).await;
                                     };
                                     thread_tx.send(None).await.expect("receiver hung up");
 
