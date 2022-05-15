@@ -24,6 +24,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let topic_discovery = Topic::new("discovery");
     let topic_report = Topic::new("reporting");
     let topic_report_mothership = Topic::new("reporting_mothership");
+    let topic_mission_complete = Topic::new("mission_complete");
 
     let mut swarm = {
         // Set a custom gossipsub
@@ -43,6 +44,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         gossipsub.subscribe(&topic_discovery).unwrap();
         gossipsub.subscribe(&topic_report).unwrap();
         gossipsub.subscribe(&topic_report_mothership).unwrap();
+        gossipsub.subscribe(&topic_mission_complete).unwrap();
 
         // build the swarm
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
@@ -136,6 +138,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             let mothership_coor: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             result_area[[mothership_coor.x as usize, mothership_coor.y as usize]] = 1;
                             println!("\n{:?}", result_area);
+                        },
+
+                        "mission_complete" => {
+                            assert_eq!(mission_area, result_area);
+                            println!("Result area is equal to mission area!");
                         },
 
                         _ => {}

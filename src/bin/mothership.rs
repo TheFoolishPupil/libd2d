@@ -44,6 +44,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let topic_task_complete = Topic::new("task_complete");
     let topic_discovery = Topic::new("discovery");
     let topic_report_mothership = Topic::new("reporting_mothership");
+    let topic_mission_complete = Topic::new("mission_complete");
 
     // Create a Swarm to manage peers and events
     let mut swarm = {
@@ -65,6 +66,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         gossipsub.subscribe(&topic_task_complete).unwrap();
         gossipsub.subscribe(&topic_discovery).unwrap();
         gossipsub.subscribe(&topic_report_mothership).unwrap();
+        gossipsub.subscribe(&topic_mission_complete).unwrap();
 
         libp2p::Swarm::new(transport, gossipsub, local_peer_id)
     };
@@ -175,7 +177,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     {
                                         println!("Publish error: {:?}", e);
                                     };
-                                }
+                                };
+                                if let Err(e) = swarm
+                                    .behaviour_mut()
+                                    .publish(topic_mission_complete.clone(), "".as_bytes())
+                                {
+                                    println!("Publish error: {:?}", e);
+                                };
 
                             }
                         }
