@@ -164,11 +164,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                                 let mut pois = state.points_of_interest.clone();
                                 let mut current_position = state.position.clone();
-                                let mut min = (state.position.clone(), 10000f64);
+                                
                                 let thread_tx = tx.clone();
 
                                 let _ = task::spawn(async move {
                                     while !pois.is_empty() {
+                                        let mut min = (state.position.clone(), 10000f64);
                                         for poi in &pois {
                                             let distance = current_position.manhatten_distance(*poi);
                                             if distance < min.1 {
