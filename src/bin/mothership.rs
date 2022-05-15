@@ -173,6 +173,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                             let distance = current_position.manhatten_distance(*poi);
                                             if distance < min.1 {
                                                 min = (*poi, distance);
+                                                println!("{:?}", min);
                                             }
                                         };
                                         current_position = min.0;
