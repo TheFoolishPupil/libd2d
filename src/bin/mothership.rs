@@ -1,3 +1,4 @@
+use async_std::channel::unbounded;
 use futures::{prelude::*, select};
 use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity, ValidationMode};
 use libp2p::{gossipsub, identity, swarm::SwarmEvent, PeerId};
@@ -75,8 +76,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .listen_on("/ip4/127.0.0.1/tcp/60740".parse().unwrap())
         .unwrap();
 
+    let (tx, mut rx) = unbounded::<Coordinate>();
+
+    // let mut tx_stream = rx.fuse();
+
     loop {
         select! {
+            event = rx.select_next_some() => {
+                dbg!(event);
+            }
             event = swarm.select_next_some() => match event {
 
                 SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
@@ -157,34 +165,30 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                 println!("{:?}", state.points_of_interest);
 
                                 let mut pois = state.points_of_interest.clone();
+                                let mut current_position = state.position.clone();
+                                
+                                let thread_tx = tx.clone();
 
-                                while !pois.is_empty() {
-                                    let mut min = (state.position.clone(), 10000f64);
-                                    for poi in &pois {
-                                        let distance = state.position.manhatten_distance(*poi);
-                                        if distance < min.1 {
-                                            min = (*poi, distance);
-                                        }
-                                    };
-                                    state.position = min.0;
-                                    pois.retain(|c| *c != min.0);
-                                    let serialized = serde_json::to_string(&min.0).unwrap();
-                                    // task::sleep(Duration::from_secs(1)).await;
-                                    println!("sending!");
-                                    if let Err(e) = swarm
-                                        .behaviour_mut()
-                                        .publish(topic_report_mothership.clone(), serialized.as_bytes())
-                                    {
-                                        println!("Publish error: {:?}", e);
-                                    };
-                                };
-                                if let Err(e) = swarm
-                                    .behaviour_mut()
-                                    .publish(topic_mission_complete.clone(), "".as_bytes())
-                                {
-                                    println!("Publish error: {:?}", e);
-                                };
+                                let _ = task::spawn(async move {
+                                    while !pois.is_empty() {
+                                        let mut min = (state.position.clone(), 10000f64);
+                                        for poi in &pois {
+                                            let distance = current_position.manhatten_distance(*poi);
+                                            if distance < min.1 {
+                                                min = (*poi, distance);
+                                                println!("{:?}", min);
+                                            }
+                                        };
+                                        current_position = min.0;
+                                        pois.retain(|c| *c != min.0);
+                                        thread_tx.send(min.0).await.expect("receiver hung up");
+                                        // let serialized = serde_json::to_string(&min.0).unwrap();
+                                        task::sleep(Duration::from_secs(1)).await;
+                                        println!("sending!");
+    
+                                    }
 
+                                });
                             }
                         }
 
