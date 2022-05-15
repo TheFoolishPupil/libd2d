@@ -70,6 +70,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     ];
     
     let mission_area = Array::random((16, 24), Uniform::new(0, 2));
+    // let mission_area = Array::random((12, 8), Uniform::new(0, 2));
+    // let mission_area = Array::random((53, 67), Uniform::new(0, 2));
+    // let mission_area = Array::random((101, 47), Uniform::new(0, 2));
+    // let mission_area = Array::random((97, 82), Uniform::new(0, 2));
 
     let mut result_area = mission_area.clone();
 
@@ -125,13 +129,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                 result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 2;
                             } else {
                                 result_area[[minion_coor.0.x as usize, minion_coor.0.y as usize]] = 0;
-                            }
+                            };
+                            println!("\n{}", result_area);
                         },
 
                         "reporting_mothership" => {
                             let mothership_coor: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             result_area[[mothership_coor.x as usize, mothership_coor.y as usize]] = 1;
-                            println!("\n{:?}", result_area);
+                            println!("\n{}", result_area);
                         },
 
                         "mission_complete" => {
