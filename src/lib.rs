@@ -173,15 +173,13 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
         .enumerate()
         .max_by_key(|(_, v)| *v)
         .unwrap();
+
     if minion_count > 1 {
+        
         let mut splits = axis_size / minion_count;
         let rem = axis_size % minion_count;
 
-        dbg!(splits, rem);
-
-
-
-        if rem > 0{
+        if rem > 0 {
 
             if rem > splits { 
                 splits += 1;

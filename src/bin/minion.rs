@@ -138,12 +138,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Some(x) => {
                     let state = state.lock().unwrap();
                     let adjusted_poi = x.position + state.global_position;
-                    let adhjusted_coor =(adjusted_poi, x.poi);
+                    let adjusted_coor =(adjusted_poi, x.poi);
                     drop(state);
                     let poi_serialized = serde_json::to_string(&adjusted_poi).unwrap();
-                    let coor_serialized = serde_json::to_string(&adhjusted_coor).unwrap();
+                    let coor_serialized = serde_json::to_string(&adjusted_coor).unwrap();
 
-                    println!("{:?}", adhjusted_coor);
+                    println!("{:?}", adjusted_coor);
 
                     if x.poi { // Publish to poi if current locaiton is a poi.
                         if let Err(e) = swarm
