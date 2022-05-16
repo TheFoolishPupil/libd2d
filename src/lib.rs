@@ -286,4 +286,20 @@ mod tests {
         assert!(dif_5.abs() < epsilon);
         assert!(dif_6.abs() < epsilon);
     }
+
+    #[test]
+    fn split_mission_area_test() {
+        let arr = Array2::<u32>::zeros((12, 4));
+        let arr_res = Array2::<u32>::zeros((3, 4));
+        let results = vec![([0i32,0], arr_res.clone()), ([3,0], arr_res.clone()), ([6,0], arr_res.clone()), ([9,0], arr_res.clone())];
+        let splits = split_mission_area(arr, 4);
+        assert_eq!(results, splits);
+
+        let arr = Array2::<u32>::zeros((7, 18));
+        let arr_res = Array2::<u32>::zeros((7, 4));
+        let arr_res_2 = Array2::<u32>::zeros((7, 6));
+        let results = vec![([0i32,0], arr_res.clone()), ([0,4], arr_res.clone()), ([0,8], arr_res.clone()), ([0,12], arr_res_2.clone())];
+        let splits = split_mission_area(arr, 4);
+        assert_eq!(results, splits);
+    }
 }
