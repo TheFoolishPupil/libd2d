@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             };
 
                             assert_eq!(mission_area, result_area);
-                            println!("Result area is equal to mission area!");
+                            println!("Mission Success!");
                             if let Some(time) = minion_time {
                                 println!("Minion/s searched total area in {:.2?}", time);
                             };
