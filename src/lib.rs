@@ -131,35 +131,43 @@ impl Stream for MinionStream {
 impl MinionStream {
     pub fn new(shared_state: Arc<Mutex<MinionState>>) -> Self {
         let thread_shared_state = shared_state.clone();
-        thread::spawn(move || loop {
-            thread::sleep(Duration::from_millis(50));
-            let mut shared_state = thread_shared_state.lock().unwrap();
+        thread::spawn(move || 'outer: loop {
+            thread::sleep(Duration::from_millis(100));
+            let shared_state = thread_shared_state.lock().unwrap();
 
             if shared_state.ready {
-                match &mut shared_state.mission_area {
-                    Some(area) => {
-                        let current_location = area.next();
-                        match current_location {
-                            Some(((x, y), poi)) => {
-                                shared_state.local_position = Coordinate { x, y };
-                                shared_state.poi = if poi != 0 { true } else { false };
-                                shared_state.heartbeat = true;
-                                if let Some(waker) = shared_state.waker.take() {
-                                    waker.wake()
-                                };
-                            }
-                            None => {
-                                shared_state.heartbeat = true;
-                                shared_state.area_exhausted = true;
-                                break;
+                drop(shared_state);
+
+                loop {
+                    thread::sleep(Duration::from_millis(100));
+                    let mut shared_state = thread_shared_state.lock().unwrap();
+
+                    match &mut shared_state.mission_area {
+                        Some(area) => {
+                            let current_location = area.next();
+                            match current_location {
+                                Some(((x, y), poi)) => {
+                                    shared_state.local_position = Coordinate { x, y };
+                                    shared_state.poi = if poi != 0 { true } else { false };
+                                    shared_state.heartbeat = true;
+                                    if let Some(waker) = shared_state.waker.take() {
+                                        waker.wake()
+                                    };
+                                }
+                                None => {
+                                    shared_state.heartbeat = true;
+                                    shared_state.area_exhausted = true;
+                                    break 'outer;
+                                }
                             }
                         }
-                    }
-                    None => {
-                        panic!("No mission area!");
+                        None => {
+                            panic!("No mission area!");
+                        }
                     }
                 }
-            }
+            };
+            drop(shared_state);
         });
 
         MinionStream { shared_state }
@@ -233,5 +241,49 @@ pub fn split_mission_area(area: Array2<u32>, minion_count: usize) -> Vec<([i32; 
         }
     } else {
         return vec![([0, 0], area)];
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manhatten_distance() {
+        let coor_1 = Coordinate { x: 0, y: 0 };
+        let coor_2 = Coordinate { x: 3, y: 8 };
+        let coor_3 = Coordinate { x: 385, y: 278 };
+        let coor_4 = Coordinate { x: -32, y: -164 };
+
+        assert_eq!(coor_1.manhatten_distance(coor_2), 11f64);
+        assert_eq!(coor_1.manhatten_distance(coor_3), 663f64);
+        assert_eq!(coor_1.manhatten_distance(coor_4), 196f64);
+        assert_eq!(coor_2.manhatten_distance(coor_3), 652f64);
+        assert_eq!(coor_2.manhatten_distance(coor_4), 207f64);
+        assert_eq!(coor_3.manhatten_distance(coor_4), 859f64);
+    }
+
+    #[test]
+    fn euclidean_distance() {
+        let coor_1 = Coordinate { x: 0, y: 0 };
+        let coor_2 = Coordinate { x: 3, y: 8 };
+        let coor_3 = Coordinate { x: 385, y: 278 };
+        let coor_4 = Coordinate { x: -32, y: -164 };
+
+        let epsilon = 0.009;
+
+        let dif_1 = coor_1.euclidean_distance(coor_2) - 8.544f64;
+        let dif_2 = coor_1.euclidean_distance(coor_3) - 474.878f64;
+        let dif_3 = coor_1.euclidean_distance(coor_4) - 167.093f64;
+        let dif_4 = coor_2.euclidean_distance(coor_3) - 467.786f64;
+        let dif_5 = coor_2.euclidean_distance(coor_4) - 175.525f64;
+        let dif_6 = coor_3.euclidean_distance(coor_4) - 607.662f64;
+
+        assert!(dif_1.abs() < epsilon);
+        assert!(dif_2.abs() < epsilon);
+        assert!(dif_3.abs() < epsilon);
+        assert!(dif_4.abs() < epsilon);
+        assert!(dif_5.abs() < epsilon);
+        assert!(dif_6.abs() < epsilon);
     }
 }

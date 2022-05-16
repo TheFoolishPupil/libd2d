@@ -198,7 +198,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                         pois.retain(|c| *c != min.0);
                                         thread_tx.send(Some(min.0)).await.expect("receiver hung up");
                                         println!("Acting on {:?}", current_position);
-                                        task::sleep(Duration::from_millis(50)).await;
+                                        task::sleep(Duration::from_millis(100)).await;
                                     };
                                     thread_tx.send(None).await.expect("receiver hung up");
                                     println!("Finished acting.");

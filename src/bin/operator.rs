@@ -5,7 +5,6 @@ use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId};
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
-// extern crate ndarray;
 use serde_json;
 use ndarray::Array;
 use ndarray_rand::RandomExt;
@@ -69,11 +68,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "/ip4/127.0.0.1/tcp/60746",
     ];
     
-    let mission_area = Array::random((16, 24), Uniform::new(0, 2));
     // let mission_area = Array::random((12, 8), Uniform::new(0, 2));
+    // let mission_area = Array::random((16, 24), Uniform::new(0, 2));
     // let mission_area = Array::random((53, 67), Uniform::new(0, 2));
-    // let mission_area = Array::random((101, 47), Uniform::new(0, 2));
-    // let mission_area = Array::random((97, 82), Uniform::new(0, 2));
+    let mission_area = Array::random((101, 47), Uniform::new(0, 2));
 
     let mut result_area = mission_area.clone();
 
@@ -81,27 +79,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         *cell = 1;
     }
 
+    let mut performence_measure_minion: Option<std::time::Instant> = None;
+    let mut performence_measure_mothership: Option<std::time::Instant> = None;
+    let mut minion_time: Option<Duration> = None;
+    let mut mothership_time: Option<Duration> = None;
+    let mut first_report = true;
+    let mut first_mothership_report = true;
 
     loop {
         select! {
 
             event = swarm.select_next_some() => match event {
-
-                // Once we know we have subscribers, send the mission
-                SwarmEvent::Behaviour(GossipsubEvent::Subscribed {
-                    topic: t,
-                    ..
-                })  if t == topic_new_mission.hash() => {
-
-                    let serialized = serde_json::to_string(&mission_area).unwrap();
-
-                    if let Err(e) = swarm
-                        .behaviour_mut()
-                        .publish(topic_new_mission.clone(), serialized.as_bytes())
-                    {
-                        println!("Publish error: {:?}", e);
-                    };
-                },
 
                 SwarmEvent::Behaviour(GossipsubEvent::Message {
                     propagation_source: _peer_id,
@@ -119,10 +107,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                                     Ok(_) => println!("Dialed {:?}", address),
                                     Err(e) => println!("Dial {:?} failed: {:?}", address, e),
                                 };
+
+                                let serialized = serde_json::to_string(&mission_area).unwrap();
+
+                                if let Err(e) = swarm
+                                    .behaviour_mut()
+                                    .publish(topic_new_mission.clone(), serialized.as_bytes())
+                                {
+                                    println!("Publish error: {:?}", e);
+                                };
                             }
                         }
 
                         "reporting" => {
+
+                            if first_report {
+                                performence_measure_minion = Some(std::time::Instant::now());
+                                first_report = false;
+                            }
+
 
                             let minion_coor: (Coordinate, bool) = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             if minion_coor.1 {
@@ -134,14 +137,35 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                         },
 
                         "reporting_mothership" => {
+
+                            if let Some(now) = performence_measure_minion {
+                                minion_time = Some(now.elapsed());
+                            }
+
+                            if first_mothership_report {
+                                performence_measure_mothership = Some(std::time::Instant::now());
+                                first_mothership_report = false;
+                            }
+
                             let mothership_coor: Coordinate = serde_json::from_str(&String::from_utf8_lossy(&message.data)).unwrap();
                             result_area[[mothership_coor.x as usize, mothership_coor.y as usize]] = 1;
                             println!("\n{}", result_area);
                         },
 
                         "mission_complete" => {
+
+                            if let Some(now) = performence_measure_mothership {
+                                mothership_time = Some(now.elapsed());
+                            };
+
                             assert_eq!(mission_area, result_area);
                             println!("Result area is equal to mission area!");
+                            if let Some(time) = minion_time {
+                                println!("Minion/s searched at rate: {:.2?} a cell", time/((result_area.dim().0 * result_area.dim().1)).try_into().unwrap());
+                            };
+                            if let Some(time) = mothership_time {
+                                println!("Mothership acted at rate: {:.2?} a cell", time/((result_area.dim().0 * result_area.dim().1)).try_into().unwrap());
+                            };
                         },
 
                         _ => {}
