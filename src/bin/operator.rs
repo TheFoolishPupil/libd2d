@@ -69,9 +69,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     ];
     
     // let mission_area = Array::random((12, 8), Uniform::new(0, 2));
-    // let mission_area = Array::random((16, 24), Uniform::new(0, 2));
+    let mission_area = Array::random((16, 24), Uniform::new(0, 2));
     // let mission_area = Array::random((53, 67), Uniform::new(0, 2));
-    let mission_area = Array::random((101, 47), Uniform::new(0, 2));
+    // let mission_area = Array::random((101, 47), Uniform::new(0, 2));
 
     let mut result_area = mission_area.clone();
 
@@ -161,10 +161,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             assert_eq!(mission_area, result_area);
                             println!("Result area is equal to mission area!");
                             if let Some(time) = minion_time {
-                                println!("Minion/s searched at rate: {:.2?} a cell", time/((result_area.dim().0 * result_area.dim().1)).try_into().unwrap());
+                                println!("Minion/s searched total area in {:.2?}", time);
                             };
                             if let Some(time) = mothership_time {
-                                println!("Mothership acted at rate: {:.2?} a cell", time/((result_area.dim().0 * result_area.dim().1)).try_into().unwrap());
+                                println!("Mothership acted on all points of interest in {:.2?}", time);
                             };
                         },
 
